@@ -1,0 +1,19 @@
+{
+  "name": "matcap-studio",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "main": "webgl.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build-scripts": "browserify src/js/index.js -d --s App -u crypto > build/main.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "browserify": "^17.0.0",
+    "stylus": "^0.54.8",
+    "terser": "^5.6.0"
+  }
+}
