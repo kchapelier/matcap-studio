@@ -1,6 +1,8 @@
 "use strict";
 
 // TODO dispose dragged/dropped model geometry after use
+// TODO change how the models are loaded to make it possible to memoize the gltf data
+// TODO prevent reload of current model
 
 const noop = function () {};
 
@@ -18,8 +20,8 @@ function memoizedLoader(loader, url, done) {
         return memoizedReturnedCache[url];
     } else {
         memoizedReturnedCache[url] = loader.load(url, function (data) {
-        memoizedLoadedCache[url] = data;
-        done(memoizedLoadedCache[url])
+            memoizedLoadedCache[url] = data;
+            done(memoizedLoadedCache[url]);
         });
         return memoizedReturnedCache[url];
     }
@@ -30,11 +32,11 @@ function findFirstMesh(children) {
 
     for (let object of children) {
         if (object.type !== 'Mesh' && object.type !== 'SkinnedMesh' && object.children && Array.isArray(object.children) && object.children.length) {
-        object = findFirstMesh(object.children) || object;
+            object = findFirstMesh(object.children) || object;
         }
 
         if (object.type === 'Mesh' || object.type === 'SkinnedMesh') {
-        mesh = object;
+            mesh = object;
         }
     }
 
@@ -186,7 +188,7 @@ Viewer.prototype.updateModel = function (fileName, data) {
             this.setMesh(mesh, null);
         }
     } else {
-        gltfLoader.parse(data, fileName, function (gltf) {
+        gltfLoader.parse(data, fileName, gltf => {
             const mesh = findFirstMesh(gltf.scene.children);
 
             if (mesh) {
@@ -205,10 +207,18 @@ Viewer.prototype.downloadModel = function (model, normal) {
             this.setMesh(new THREE.Mesh(bufferGeometry, this.material), null);
         });
     } else {
-        memoizedLoader(gltfLoader, 'assets/models/' + model, gltf => {
-            console.log(gltf);
+        // can't memoize glb like this because the process of adding the mesh to our scene removes it from gltf.scene
+        // this will do in the meantime
+
+        gltfLoader.load('assets/models/' + model, gltf => {
             this.setMesh(findFirstMesh(gltf.scene.children), normalMap);
         });
+
+        /*
+        memoizedLoader(gltfLoader, 'assets/models/' + model, gltf => {
+            this.setMesh(findFirstMesh(gltf.scene.children), normalMap);
+        });
+        */
     }
 }
 

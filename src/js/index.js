@@ -3,6 +3,7 @@
 // TODO dispose existing texture if not the same size, otherwise reuse it
 // TODO flag texture updates and viewer updates separately for even better perfs
 // TODO fix var/let/const soup
+// TODO investigate using a higher bit per channel 
 
 var Context = require('./webgl/context');
 var matcapProcess = require('./jobs/matcap-process');
@@ -221,8 +222,8 @@ function init () {
     }}, 'reset').name('Reset');
 
     var folder = gui.addFolder('Background');
-    folder.add(options, 'hueChangeOnBackground', 0.0, 1.0).step(0.001).name('Hue changes on background').onChange(update);
-    folder.add(options, 'backgroundRegenerate').name('Generate new background').onChange(update);
+    folder.add(options, 'backgroundRegenerate').name('Generate new BG').onChange(update);
+    folder.add(options, 'hueChangeOnBackground', 0.0, 1.0).step(0.001).name('Apply hue and tint on BG').onChange(update);
     folder.addColor(options, 'backgroundColor').name('Opaque color').onChange(update);
     folder.add(options, 'backgroundColorRatio', 0.0, 1.0).step(0.001).name('Opaque color ratio').onChange(update);
     folder.add({ reset: function () {
@@ -265,6 +266,7 @@ function init () {
         }
 
         el.addEventListener('click', e => {
+            e.preventDefault();
             texture = context.createTexture(img.naturalWidth, img.naturalHeight, false);
             texture.updateFromImageElement(img);
             update(true);
@@ -273,6 +275,7 @@ function init () {
 
     [...document.querySelectorAll('.js-model')].forEach(el => {
         el.addEventListener('click', e => {
+            e.preventDefault();
             const model = el.getAttribute('data-model');
             const normal = el.getAttribute('data-normal');
     

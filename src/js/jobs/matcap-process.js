@@ -28,39 +28,36 @@ function getMatcapProgram (context) {
             uniform float translationX;
             uniform float translationY;
             uniform float zoom;
-            uniform float rotation;
 
+            uniform float rotation;
             uniform float multiplier;
             uniform float add;
 
             uniform int type;
+            uniform float hueShift;
             uniform float brightness;
             uniform float contrast;
+            uniform float saturation;
+            uniform float tintAmount;
+            uniform vec3 tintColor;
 
             uniform bool backgroundRegenerate;
             uniform vec3 backgroundColor;
             uniform float backgroundColorRatio;
+            uniform float hueChangeOnBackground;
 
-            uniform float saturation;
-
-            uniform float iridescenceAmount; // = 0.2;
-            uniform float iridescencePower; // = 4.;
-            uniform float iridescenceScale; // = 2.;
-            uniform float iridescencePower2; // = 2.;
-            uniform float lumaFactor1; // = 3.;
-            uniform float lumaFactor2; // = 3.;
-
-            uniform float hueShift; //=0
-            uniform float tintAmount; //=0
-            uniform vec3 tintColor; //=vec3(1.,1.,1.)
-            uniform float hueChangeOnBackground; //=0
+            uniform float iridescenceAmount;
+            uniform float iridescenceScale;
+            uniform float iridescencePower;
+            uniform float iridescencePower2;
+            uniform float lumaFactor1;
+            uniform float lumaFactor2;
 
             uniform sampler2D source;
             uniform bool sourceSet;
             uniform vec2 sourceSize;
 
-            const float eps = 0.0000001;
-
+            // https://gist.github.com/yiwenl/745bfea7f04c456e0101 (much better than previous implementation)
             vec3 rgb2hsl(vec3 color) {
                 vec3 hsl = vec3(0.);
 
@@ -80,48 +77,36 @@ function getMatcapProgram (context) {
                         hsl.y = delta / (fmax + fmin); // Saturation
                     else
                         hsl.y = delta / (2.0 - fmax - fmin); // Saturation
-           
+
                     float deltaR = (((fmax - color.r) / 6.0) + (delta / 2.0)) / delta;
                     float deltaG = (((fmax - color.g) / 6.0) + (delta / 2.0)) / delta;
                     float deltaB = (((fmax - color.b) / 6.0) + (delta / 2.0)) / delta;
-           
+
                     if (color.r == fmax)
                         hsl.x = deltaB - deltaG; // Hue
                     else if (color.g == fmax)
                         hsl.x = (1.0 / 3.0) + deltaR - deltaB; // Hue
                     else if (color.b == fmax)
                         hsl.x = (2.0 / 3.0) + deltaG - deltaR; // Hue
-           
+
                     if (hsl.x < 0.0)
                         hsl.x += 1.0; // Hue
                     else if (hsl.x > 1.0)
                         hsl.x -= 1.0; // Hue
                 }
-           
+
                 return hsl;
             }
 
-            vec3 _hsl2rgb (in vec3 c) {
+            vec3 hsl2rgb (in vec3 c) {
               vec3 rgb = clamp( abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0 );
               return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
             }
 
-            vec3 _rgb2hsl (vec3 col) {
-                col = clamp(col, 0., 1.);
-              float minc = min( col.r, min(col.g, col.b) );
-              float maxc = max( col.r, max(col.g, col.b) );
-              vec3 mask = step(col.grr,col.rgb) * step(col.bbg,col.rgb);
-              vec3 h = mask * (vec3(0.0,2.0,4.0) + (col.gbr-col.brg)/(maxc-minc + eps)) / 6.0;
-              return vec3( fract( 1.0 + h.x + h.y + h.z ),              // H
-                           (maxc-minc)/(1.0-abs(minc+maxc-1.0) + eps),  // S
-                           (minc+maxc)*0.5 );                           // L
-            }
-
-
             vec3 hslShift(vec3 color) {
                 color = rgb2hsl(color);
                 color.r = color.r + hueShift + 1.;
-                return _hsl2rgb(color);
+                return hsl2rgb(color);
             }
 
             vec2 rotate(vec2 v, float a) {
@@ -144,15 +129,16 @@ function getMatcapProgram (context) {
             vec4 process (in vec2 uv) {
                 vec2 cuv = (uv - 0.5) * 2.0;
 
-                float mask = clamp((100. - length(cuv*0.999) * 99.), 0., 1.); // used to limit some effects (iridescence and hue shift) to the inner part of the matcap
+                // used to limit some effects (iridescence and hue shift) to the inner part of the matcap
+                float mask = clamp((100. - length(cuv*0.999) * 99.), 0., 1.);
 
                 float z = hemisphere(cuv);
                 vec3 cuv3 = vec3(cuv, z);
                 float h = length(cuv3.xy);
-                
+
                 cuv3.z = cuv3.z * multiplier + add;
                 cuv3 = normalize(cuv3);
-                
+
                 vec4 col = vec4(0.);
 
                 if (h > 1. && backgroundRegenerate == true) {
@@ -162,7 +148,7 @@ function getMatcapProgram (context) {
                     vec2 uvb = (nuv * 0.5 + 0.5) - nuv * pow(h - 1., 1.40) * 1.;
                     vec2 uvc = (nuv * 0.5 + 0.5) - nuv * pow(h - 1., 1.35) * 0.1;
                     vec2 uva = (nuv * 0.5 + 0.5) - nuv * pow(h - 1., 1.30) * 0.05;
-                    
+
                     col = (sampleSource(uva) + sampleSource(uvb) + sampleSource(uvc)) / 3.;
                 } else {
                     col = mix(
@@ -212,7 +198,7 @@ function getMatcapProgram (context) {
                 );
 
                 // iridescence
-                
+
                 float lz = z * mix(1., 0.2 + 0.8 * z, clamp(luma * lumaFactor1, 0., 1.));
 
                 float iridescencePower2m = 0.01 + 0.99 * iridescencePower2;
@@ -243,27 +229,28 @@ function getMatcapProgram (context) {
             source: 't',
             translationX: 'f',
             translationY: 'f',
-            rotation: 'f',
             zoom: 'f',
+
+            rotation: 'f',
             multiplier: 'f',
             add: 'f',
+
             type: 'i',
+            hueShift: 'f',
             brightness: 'f',
             contrast: 'f',
             saturation: 'f',
+            tintAmount: 'f',
+            tintColor: '3f',
 
             iridescenceAmount: 'f',
-            iridescencePower: 'f',
             iridescenceScale: 'f',
+            iridescencePower: 'f',
             iridescencePower2: 'f',
             lumaFactor1: 'f',
             lumaFactor2: 'f',
 
-            hueShift: 'f',
-            tintAmount: 'f',
-            tintColor: '3f',
             hueChangeOnBackground: 'f',
-
             backgroundRegenerate: 'b',
             backgroundColor: '3f',
             backgroundColorRatio: 'f',
