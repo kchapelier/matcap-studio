@@ -1,6 +1,6 @@
 # matcap-studio
 
-https://github.com/kchapelier/matcap-studio
+https://www.kchapelier.com/matcap-studio/
 
 An utility to tweak matcaps, with realtime visual feedback.
 
