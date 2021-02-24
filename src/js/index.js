@@ -3,25 +3,24 @@
 // TODO dispose existing texture if not the same size, otherwise reuse it
 // TODO flag texture updates and viewer updates separately for even better perfs
 // TODO fix var/let/const soup
-// TODO investigate using a higher bit per channel 
 
-var Context = require('./webgl/context');
-var matcapProcess = require('./jobs/matcap-process');
-var Viewer = require('./viewer');
+const Context = require('./webgl/context');
+const matcapProcess = require('./jobs/matcap-process');
+const Viewer = require('./viewer');
 
 function init () {
-    var matcapElement = document.querySelector('.matcap');
-    var guiElement = document.querySelector('.gui');
-
-    const viewer = new Viewer();
-
-    var context = new Context(512, 512);
+    const body = document.body;
+    const viewerElement = document.querySelector('.viewer');
+    const matcapElement = document.querySelector('.matcap');
+    const guiElement = document.querySelector('.gui');
+    const viewer = new Viewer(viewerElement);
+    const context = new Context(512, 512);
 
     matcapElement.appendChild(context.working.canvas);
 
-    var texture = null;
+    let texture = null;
 
-    var defaults = {
+    const defaults = {
         translationX: 0,
         translationY: 0,
         zoom: 1.0,
@@ -59,10 +58,9 @@ function init () {
         fov: 50
     };
 
-    var options = Object.assign({}, defaults);
+    const options = Object.assign({}, defaults);
 
-    var updateRequested = false;
-
+    let updateRequested = false;
     let previousState = '';
 
     (function loop() {
@@ -83,7 +81,6 @@ function init () {
         }
 
         viewer.update();
-
         requestAnimationFrame(loop);
     })();
 
@@ -95,7 +92,9 @@ function init () {
         updateRequested = true;
     }
 
-    var body = document.body;
+    window.addEventListener('resize', () => {
+        viewer.resize();
+    });
 
     window.addEventListener('keydown', e => {
         if (document.activeElement.type !== 'text' && e.which === 72) {
@@ -126,12 +125,12 @@ function init () {
         const imageMimeType = ['image/jpeg', 'image/png'];
 
         if (imageMimeType.includes(file.type)) {
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = (e) => {
-                var img = document.createElement('img');
+                const img = document.createElement('img');
                 img.onload = function () {
-                    var width = img.naturalWidth;
-                    var height = img.naturalHeight;
+                    const width = img.naturalWidth;
+                    const height = img.naturalHeight;
                     texture = context.createTexture(width, height, false);
                     texture.updateFromImageElement(img);
 
@@ -141,13 +140,13 @@ function init () {
             };
             reader.readAsDataURL(file);
         } else if (file.name.match(/\.gltf$/) || file.name.match(/\.glb$/) || file.name.match(/\.prwm$/)) {
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = (e) => {
                 viewer.updateModel(file.name, e.target.result);
             };
             reader.readAsArrayBuffer(file);
         } else if (file.name.match(/\.obj$/)) {
-            var reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = (e) => {
                 viewer.updateModel(file.name, e.target.result);
             };
@@ -171,9 +170,9 @@ function init () {
         update(false);
     }
 
-    var gui = new dat.GUI({ width: guiElement.getBoundingClientRect().width, hideable: false, autoPlace: false });
+    const gui = new dat.GUI({ width: guiElement.getBoundingClientRect().width, hideable: false, autoPlace: false });
     guiElement.appendChild(gui.domElement);
-    var folder = gui.addFolder('Source image modifier');
+    let folder = gui.addFolder('Source image modifier');
     folder.add(options, 'translationX', -1.0, 1.0).step(0.001).name('X').onChange(update);
     folder.add(options, 'translationY', -1.0, 1.0).step(0.001).name('Y').onChange(update);
     folder.add(options, 'zoom', 1.0, 10.0).step(0.001).name('Zoom').onChange(update);
@@ -181,7 +180,7 @@ function init () {
         resetGroupToDefaults('Source image modifier');
     }}, 'reset').name('Reset');
 
-    var folder = gui.addFolder('Curve and rotation');
+    folder = gui.addFolder('Curve and rotation');
     folder.add(options, 'rotation', 0.0, 1.0).step(0.001).name('Rotation').onChange(update);
     folder.add(options, 'multiplier', 0.5, 4.0).step(0.001).name('Curve multiplier').onChange(update);
     folder.add(options, 'add', 0.0, 1.0).step(0.001).name('Curve increase').onChange(update);
@@ -189,7 +188,7 @@ function init () {
         resetGroupToDefaults('Curve and rotation');
     }}, 'reset').name('Reset');
 
-    var folder = gui.addFolder('Colors');
+    folder = gui.addFolder('Colors');
     folder.add(options, 'type', { Standard: 0, Smooth: 1 }).name('Color model').onChange(update);
     folder.add(options, 'hueShift', -1.0, 1.0).step(0.001).name('Hue shift').onChange(update);
     folder.add(options, 'brightness', -1.0, 1.0).step(0.001).name('Brightness').onChange(update);
@@ -201,7 +200,7 @@ function init () {
         resetGroupToDefaults('Colors');
     }}, 'reset').name('Reset');
 
-    var folder = gui.addFolder('Iridescence');
+    folder = gui.addFolder('Iridescence');
     folder.add(options, 'iridescenceAmount', 0.0, 1.0).step(0.001).name('Amount').onChange(update);
     folder.add(options, 'iridescenceScale', 0.0, 2.0).step(0.001).name('Scale').onChange(update);
     folder.add(options, 'iridescencePower', 0.0, 5.0).step(0.001).name('Power 1').onChange(update);
@@ -212,7 +211,7 @@ function init () {
         resetGroupToDefaults('Iridescence');
     }}, 'reset').name('Reset');
 
-    var folder = gui.addFolder('Circular blur');
+    folder = gui.addFolder('Circular blur');
     folder.add(options, 'angle', 0.0, 1.0).step(0.001).name('Blur distance').onChange(update);
     folder.add(options, 'parabolaFactor', 1., 50.).step(0.01).name('Parabola factor').onChange(update);
     folder.add(options, 'distanceFactor', 0.0, 1.0).step(0.001).name('Distance factor').onChange(update);
@@ -221,7 +220,7 @@ function init () {
         resetGroupToDefaults('Circular blur');
     }}, 'reset').name('Reset');
 
-    var folder = gui.addFolder('Background');
+    folder = gui.addFolder('Background');
     folder.add(options, 'backgroundRegenerate').name('Generate new BG').onChange(update);
     folder.add(options, 'hueChangeOnBackground', 0.0, 1.0).step(0.001).name('Apply hue and tint on BG').onChange(update);
     folder.addColor(options, 'backgroundColor').name('Opaque color').onChange(update);
@@ -230,7 +229,7 @@ function init () {
         resetGroupToDefaults('Background');
     }}, 'reset').name('Reset');
 
-    var folder = gui.addFolder('Viewer');
+    folder = gui.addFolder('Viewer');
     folder.add(options, 'fov', 30, 90).step(1).name('FOV').onChange(update);
     folder.add({ reset: function () {
         resetGroupToDefaults('Viewer');

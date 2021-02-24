@@ -43,7 +43,7 @@ function findFirstMesh(children) {
     return mesh;
 }
 
-function Viewer () {
+function Viewer (viewerElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
 
     this.canvasTexture = null;
@@ -74,10 +74,9 @@ function Viewer () {
     this.setGlobe();
     this.resize();
 
-    const viewerElement = document.querySelector('.viewer');
     viewerElement.appendChild(this.renderer.domElement);
 
-    window.addEventListener('resize', () => { this.resize(); });
+    this.forceRender = true;
 }
 
 Viewer.prototype.setMesh = function (newMesh, normalMap) {
@@ -109,6 +108,8 @@ Viewer.prototype.setMesh = function (newMesh, normalMap) {
 
     this.scene.add(this.mesh);
     this.controls.reset();
+
+    this.forceRender = true;
 };
 
 Viewer.prototype.setGlobe = function () {
@@ -169,11 +170,15 @@ Viewer.prototype.updateTexture = function (canvas) {
 
     this.globeMaterial.uniforms.source.value = this.canvasTexture;
     this.globeMaterial.needsUpdate = true;
+    
+    this.forceRender = true;
 }
 
 Viewer.prototype.updateViewer = function (options) {
     this.camera.fov = options.fov;
     this.camera.updateProjectionMatrix();
+
+    this.forceRender = true;
 };
 
 Viewer.prototype.updateModel = function (fileName, data) {
@@ -247,11 +252,16 @@ Viewer.prototype.resize = function () {
     this.renderer.setPixelRatio(pixelRatio);
     
     this.globeMaterial.uniforms.resolution.value.set(width * pixelRatio, height * pixelRatio);
+
+    this.forceRender = true;
 };
 
 Viewer.prototype.update = function () {
-    this.controls.update();
-    this.renderer.render(this.scene, this.camera);
+    if (this.controls.update() || this.forceRender) {
+        console.log('render');
+        this.renderer.render(this.scene, this.camera);
+        this.forceRender = false;
+    }
 };
 
 module.exports = Viewer;

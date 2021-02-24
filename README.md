@@ -32,4 +32,6 @@ Make sure to contact me, either on [Twitter](https://twitter.com/kchplr) or thro
 
 ## History
 
+ - **0.1.1 (2021-02-24):** Fix minor UI issues
  - **0.1.0 (2021-02-23):** First release
+ 
