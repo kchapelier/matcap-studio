@@ -60,6 +60,10 @@ function Viewer (viewerElement) {
     this.controls.minPolarAngle = Math.PI / 10;
     this.controls.maxPolarAngle = Math.PI / 10 * 9;
 
+    this.controls.addEventListener('change', () => {
+        this.forceRender = true;
+    });
+
     this.scene = new THREE.Scene();
     this.material = new THREE.MeshMatcapMaterial( {
         color: 0xFFFFFF,
