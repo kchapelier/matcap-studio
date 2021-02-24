@@ -199,12 +199,13 @@ Viewer.prototype.updateModel = function (fileName, data) {
 };
 
 
-Viewer.prototype.downloadModel = function (model, normal) {
+Viewer.prototype.downloadModel = function (model, normal, done) {
     const normalMap = normal ? memoizedLoader(textureLoader, 'assets/models/' + normal, noop) : null;
 
     if (model.match(/\.prwm$/)) {
         memoizedLoader(prwmLoader, 'assets/models/' + model, bufferGeometry => {
             this.setMesh(new THREE.Mesh(bufferGeometry, this.material), null);
+            done();
         });
     } else {
         // can't memoize glb like this because the process of adding the mesh to our scene removes it from gltf.scene
@@ -212,6 +213,7 @@ Viewer.prototype.downloadModel = function (model, normal) {
 
         gltfLoader.load('assets/models/' + model, gltf => {
             this.setMesh(findFirstMesh(gltf.scene.children), normalMap);
+            done();
         });
 
         /*
@@ -226,7 +228,10 @@ Viewer.prototype.chooseModel = function (model, normal) {
     if (model === 'torus') {
         this.setMesh(this.torusMesh, null);
     } else {
-        this.downloadModel(model, normal);
+        document.body.classList.add('loading');
+        this.downloadModel(model, normal, () => {
+            document.body.classList.remove('loading');
+        });
     }
 };
 

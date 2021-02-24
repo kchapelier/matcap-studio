@@ -12,10 +12,6 @@
         width: 100vw;
       }
 
-      body.loading {
-        cursor: progress !important;
-      }
-
       canvas {
         margin: 0;
         padding: 0;
@@ -52,16 +48,17 @@
       .matcap canvas {
         display: block;
         width: 100%;
-        height: 100;
+        height: 100%;
       }
 
       .gui {
-        display:block;
-        width:355px;
-        height:100vh;
-        position:absolute;
-        right:10px;
-        top:0;
+        display: block;
+        width: 355px;
+        height: 0;
+        overflow: visible;
+        position: absolute;
+        right: 10px;
+        top: 0;
       }
 
       .github {
@@ -71,6 +68,9 @@
         display: block;
         width: 30px;
         height: 30px;
+
+        user-select: none;
+        -webkit-user-select: none;
       }
 
       .github svg {
@@ -91,6 +91,12 @@
         font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
         font-size: 13px;
         color: #BBBBBB;
+
+        opacity: 1.0;
+        transition: opacity 0.2s ease-in-out;
+
+        user-select: none;
+        -webkit-user-select: none;
       }
 
       .model-list a {
@@ -107,6 +113,9 @@
         position: absolute;
         bottom: 0;
         left: 0;
+
+        user-select: none;
+        -webkit-user-select: none;
       }
 
       .matcap-list a {
@@ -125,37 +134,40 @@
         height:100%;
       }
 
-      body.hide-gui .matcap-list, body.hide-gui .gui, body.hide-gui .matcap, body.hide-gui .model-list, body.hide-gui .github {
+      body.hide-gui .hideable {
         display: none;
+      }
+
+      body.loading .model-list {
+        opacity: 0.3;
+        pointer-events: none;
       }
     </style>
   </head>
   <body>
     <div class="viewer"></div>
-    <div class="matcap"></div>
-    <div class="gui"></div>
-    <div class="matcap-list">
+    <div class="matcap hideable"></div>
+    <div class="matcap-list hideable">
       <a href="#magritte" class="js-matcap"><img src="./assets/matcaps/matcap-magritte.png" /></a>
       <a href="#gold" class="js-matcap"><img src="./assets/matcaps/matcap-gold.png" /></a>
       <a href="#pink-silk" class="js-matcap"><img src="./assets/matcaps/matcap-pink-silk.png" /></a>
       <a href="#blinn-diesel" class="js-matcap"><img src="./assets/matcaps/matcap-blinn-diesel.png" /></a>
       <a href="#dragon-gem" class="js-matcap"><img src="./assets/matcaps/matcap-dragon-gem.png" /></a>
     </div>
-    <div class="model-list">
+    <div class="model-list hideable">
       <a href="#" class="js-model" data-model="torus">Torus</a> | 
       <a href="#" class="js-model" data-model="leeperrysmith.glb" data-normal="leeperrysmith-normals.jpg">Lee Perry Smith</a> | 
       <a href="#" class="js-model" data-model="faceted-nefertiti.le.prwm">Faceted Nerfertiti</a> | 
       <a href="#" class="js-model" data-model="smooth-suzanne.le.prwm">Suzanne</a> | 
       <a href="#" class="js-model" data-model="vive-controller.le.prwm">Vive controller</a>
     </div>
-
-    <a href="https://github.com/kchapelier/matcap-studio" target="_blank" class="github">
+    <a href="https://github.com/kchapelier/matcap-studio" target="_blank" class="github hideable">
       <svg height="36" viewBox="-2 -2 20 20" version="1.1" width="36">
         <circle fill="black" cx="8" cy="8" r="10"/>
         <path fill="white" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
       </svg>
     </a>
-    
+    <div class="gui hideable"></div>
 
     <script src="vendors/dat-gui.min.js?v=0.7.7"></script>
     <script src="vendors/three.min.js"></script>
