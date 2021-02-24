@@ -20,6 +20,19 @@ function init () {
 
     let texture = null;
 
+    function getTextureForSize(width, height) {
+        if (texture === null || texture.width !== width || texture.height !== height) {
+            if (texture !== null) {
+                texture.dispose();
+            }
+
+            texture = context.createTexture(width, height, false);
+            console.log('create texture');
+        }
+
+        return texture;
+    }
+
     const defaults = {
         translationX: 0,
         translationY: 0,
@@ -131,7 +144,7 @@ function init () {
                 img.onload = function () {
                     const width = img.naturalWidth;
                     const height = img.naturalHeight;
-                    texture = context.createTexture(width, height, false);
+                    texture = getTextureForSize(width, height);
                     texture.updateFromImageElement(img);
 
                     update(true);
@@ -258,7 +271,7 @@ function init () {
 
         if (i === 0) {
             if (img.complete) {
-                texture = context.createTexture(img.naturalWidth, img.naturalHeight, false);
+                texture = getTextureForSize(img.naturalWidth, img.naturalHeight);
                 texture.updateFromImageElement(img);
                 update(true);
             }
@@ -266,7 +279,7 @@ function init () {
 
         el.addEventListener('click', e => {
             e.preventDefault();
-            texture = context.createTexture(img.naturalWidth, img.naturalHeight, false);
+            texture = getTextureForSize(img.naturalWidth, img.naturalHeight);
             texture.updateFromImageElement(img);
             update(true);
         });
