@@ -1,6 +1,5 @@
 "use strict";
 
-// TODO dispose existing texture if not the same size, otherwise reuse it
 // TODO flag texture updates and viewer updates separately for even better perfs
 // TODO fix var/let/const soup
 
@@ -27,7 +26,6 @@ function init () {
             }
 
             texture = context.createTexture(width, height, false);
-            console.log('create texture');
         }
 
         return texture;

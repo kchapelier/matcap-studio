@@ -1,8 +1,7 @@
 "use strict";
 
-// TODO dispose dragged/dropped model geometry after use
 // TODO change how the models are loaded to make it possible to memoize the gltf data
-// TODO prevent reload of current model
+// TODO optimize background shader for small specs (it's too much for my MBP2013)
 
 const noop = function () {};
 
@@ -74,7 +73,7 @@ function Viewer (viewerElement) {
     });
 
     this.torusMesh = new THREE.Mesh(new THREE.TorusKnotGeometry(100, 30, 256, 48), this.material);
-    this.setMesh(this.torusMesh, null);
+    this.setMesh(this.torusMesh, null, 'torus');
     this.setGlobe();
     this.resize();
 
@@ -83,9 +82,13 @@ function Viewer (viewerElement) {
     this.forceRender = true;
 }
 
-Viewer.prototype.setMesh = function (newMesh, normalMap) {
+Viewer.prototype.setMesh = function (newMesh, normalMap, modelId) {
     if (this.mesh !== null) {
         this.scene.remove(this.mesh);
+
+        if (this.currentModel === 'custom') {
+            this.mesh.geometry.dispose();
+        }
     }
 
     this.mesh = newMesh;
@@ -114,6 +117,7 @@ Viewer.prototype.setMesh = function (newMesh, normalMap) {
     this.controls.reset();
 
     this.forceRender = true;
+    this.currentModel = modelId;
 };
 
 Viewer.prototype.setGlobe = function () {
@@ -188,20 +192,20 @@ Viewer.prototype.updateViewer = function (options) {
 Viewer.prototype.updateModel = function (fileName, data) {
     if (fileName.match(/\.prwm$/)) {
         const bufferGeometry = prwmLoader.parse(data);
-        this.setMesh(new THREE.Mesh(bufferGeometry, this.material), null);
+        this.setMesh(new THREE.Mesh(bufferGeometry, this.material), null, 'custom');
     } else if (fileName.match(/\.obj$/)) {
         const object = objLoader.parse(data);
         const mesh = findFirstMesh([object]);
 
         if(mesh) {
-            this.setMesh(mesh, null);
+            this.setMesh(mesh, null, 'custom');
         }
     } else {
         gltfLoader.parse(data, fileName, gltf => {
             const mesh = findFirstMesh(gltf.scene.children);
 
             if (mesh) {
-                this.setMesh(mesh, null);
+                this.setMesh(mesh, null, 'custom');
             }
         }, noop);
     }
@@ -213,16 +217,14 @@ Viewer.prototype.downloadModel = function (model, normal, done) {
 
     if (model.match(/\.prwm$/)) {
         memoizedLoader(prwmLoader, 'assets/models/' + model, bufferGeometry => {
-            this.setMesh(new THREE.Mesh(bufferGeometry, this.material), null);
-            done();
+            done(new THREE.Mesh(bufferGeometry, this.material), null);
         });
     } else {
         // can't memoize glb like this because the process of adding the mesh to our scene removes it from gltf.scene
         // this will do in the meantime
 
         gltfLoader.load('assets/models/' + model, gltf => {
-            this.setMesh(findFirstMesh(gltf.scene.children), normalMap);
-            done();
+            done(findFirstMesh(gltf.scene.children), normalMap);
         });
 
         /*
@@ -234,11 +236,14 @@ Viewer.prototype.downloadModel = function (model, normal, done) {
 }
 
 Viewer.prototype.chooseModel = function (model, normal) {
+    if (model === this.currentModel) return;
+
     if (model === 'torus') {
-        this.setMesh(this.torusMesh, null);
+        this.setMesh(this.torusMesh, null, model);
     } else {
         document.body.classList.add('loading');
-        this.downloadModel(model, normal, () => {
+        this.downloadModel(model, normal, (mesh, normalMap) => {
+            this.setMesh(mesh, normalMap, model);
             document.body.classList.remove('loading');
         });
     }
@@ -262,7 +267,6 @@ Viewer.prototype.resize = function () {
 
 Viewer.prototype.update = function () {
     if (this.controls.update() || this.forceRender) {
-        console.log('render');
         this.renderer.render(this.scene, this.camera);
         this.forceRender = false;
     }

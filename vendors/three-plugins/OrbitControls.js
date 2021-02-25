@@ -315,7 +315,7 @@ THREE.OrbitControls = function ( object, domElement ) {
 
 	var state = STATE.NONE;
 
-	var EPS = 0.01;
+	var EPS = 0.1;
 
 	// current position in spherical coordinates
 	var spherical = new THREE.Spherical();
