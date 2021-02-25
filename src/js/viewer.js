@@ -1,7 +1,6 @@
 "use strict";
 
 // TODO change how the models are loaded to make it possible to memoize the gltf data
-// TODO optimize background shader for small specs (it's too much for my MBP2013)
 
 const noop = function () {};
 
@@ -43,19 +42,21 @@ function findFirstMesh(children) {
 }
 
 function Viewer (viewerElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({
+        antialias: true
+    });
 
     this.canvasTexture = null;
 
-    this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
-    this.camera.position.z = 400;
+    this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 4000);
+    this.camera.position.z = 100;
 
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.2;
     this.controls.screenSpacePanning = false;
     this.controls.minDistance = 20;
-    this.controls.maxDistance = 3000;
+    this.controls.maxDistance = 1000;
     this.controls.minPolarAngle = Math.PI / 10;
     this.controls.maxPolarAngle = Math.PI / 10 * 9;
 
@@ -74,7 +75,7 @@ function Viewer (viewerElement) {
 
     this.torusMesh = new THREE.Mesh(new THREE.TorusKnotGeometry(100, 30, 256, 48), this.material);
     this.setMesh(this.torusMesh, null, 'torus');
-    this.setGlobe();
+    this.setSkybox();
     this.resize();
 
     viewerElement.appendChild(this.renderer.domElement);
@@ -101,7 +102,7 @@ Viewer.prototype.setMesh = function (newMesh, normalMap, modelId) {
         this.mesh.geometry.computeBoundingSphere();
     }
 
-    const scale = 180 / this.mesh.geometry.boundingSphere.radius;
+    const scale = 40 / this.mesh.geometry.boundingSphere.radius;
 
     this.mesh.position.x = -this.mesh.geometry.boundingSphere.center.x * scale;
     this.mesh.position.y = -this.mesh.geometry.boundingSphere.center.y * scale;
@@ -120,33 +121,42 @@ Viewer.prototype.setMesh = function (newMesh, normalMap, modelId) {
     this.currentModel = modelId;
 };
 
-Viewer.prototype.setGlobe = function () {
-    const globeGeometry = new THREE.IcosahedronGeometry(5000, 5);
-    this.globeMaterial = new THREE.ShaderMaterial({
+Viewer.prototype.setSkybox = function () {
+    const skyboxGeometry = new THREE.BoxGeometry(2100, 2100, 2100);
+
+    this.skyboxMaterial = new THREE.RawShaderMaterial( {
         side: THREE.BackSide,
         uniforms: {
             source: { value: null },
             resolution: { value: new THREE.Vector2(0.0, 0.0) }
         },
         vertexShader: `
+            precision mediump float;
+            precision mediump int;
+
+            uniform mat4 modelViewMatrix;
+            uniform mat4 projectionMatrix;
+
+            attribute vec3 position;
+
             void main()	{
-                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-                gl_Position = projectionMatrix * mvPosition;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `,
         fragmentShader: `
+            precision mediump float;
+            precision mediump int;
+
             uniform sampler2D source;
             uniform vec2 resolution;
 
             void main()	{
                 vec2 uv = gl_FragCoord.xy / resolution;
 
-                float s = 0.12;
-
-                vec4 bottomleft = mix(texture2D(source, vec2(0.0, 0.0)), texture2D(source, vec2(s, s)), clamp(uv.x * 2., 0., 1.));
-                vec4 bottomright = mix(texture2D(source, vec2(1.0, 0.0)), texture2D(source, vec2(1. - s, s)), 1. - clamp((uv.x - 1.) * 2., 0., 1.));
-                vec4 topleft = mix(texture2D(source, vec2(0.0, 1.0)), texture2D(source, vec2(s, 1. - s)), clamp(uv.x, 0., 1.));
-                vec4 topright = mix(texture2D(source, vec2(1.0, 1.0)), texture2D(source, vec2(1. - s, 1. - s)), 1. - clamp(uv.x - 1., 0., 1.));
+                vec4 bottomleft = mix(texture2D(source, vec2(0.0, 0.0)), texture2D(source, vec2(0.12, 0.12)), clamp(uv.x * 2., 0., 1.));
+                vec4 bottomright = mix(texture2D(source, vec2(1.0, 0.0)), texture2D(source, vec2(0.88, 0.12)), 1. - clamp((uv.x - 1.) * 2., 0., 1.));
+                vec4 topleft = mix(texture2D(source, vec2(0.0, 1.0)), texture2D(source, vec2(0.12, 0.88)), clamp(uv.x, 0., 1.));
+                vec4 topright = mix(texture2D(source, vec2(1.0, 1.0)), texture2D(source, vec2(0.88, 0.88)), 1. - clamp(uv.x - 1., 0., 1.));
 
                 vec4 color = mix(
                     mix(bottomleft, bottomright, uv.x),
@@ -165,8 +175,8 @@ Viewer.prototype.setGlobe = function () {
         `
     });
 
-    this.globeMesh = new THREE.Mesh(globeGeometry, this.globeMaterial);
-    this.scene.add(this.globeMesh);
+    this.skyboxMesh = new THREE.Mesh(skyboxGeometry, this.skyboxMaterial);
+    this.scene.add(this.skyboxMesh);
 };
 
 Viewer.prototype.updateTexture = function (canvas) {
@@ -176,8 +186,8 @@ Viewer.prototype.updateTexture = function (canvas) {
     this.material.matcap = this.canvasTexture; 
     this.material.needsUpdate = true;
 
-    this.globeMaterial.uniforms.source.value = this.canvasTexture;
-    this.globeMaterial.needsUpdate = true;
+    this.skyboxMaterial.uniforms.source.value = this.canvasTexture;
+    this.skyboxMaterial.needsUpdate = true;
     
     this.forceRender = true;
 }
@@ -260,7 +270,7 @@ Viewer.prototype.resize = function () {
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(pixelRatio);
     
-    this.globeMaterial.uniforms.resolution.value.set(width * pixelRatio, height * pixelRatio);
+    this.skyboxMaterial.uniforms.resolution.value.set(width * pixelRatio, height * pixelRatio);
 
     this.forceRender = true;
 };
