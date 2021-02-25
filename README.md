@@ -32,6 +32,12 @@ Make sure to contact me, either on [Twitter](https://twitter.com/kchplr) or thro
 
 ## History
 
+ - **0.1.2 (2021-02-25):** Better memory management, avoid redundant renders of the 3d model, simplified skybox
  - **0.1.1 (2021-02-24):** Fix minor UI issues
  - **0.1.0 (2021-02-23):** First release
- 
+
+ ## Links
+
+  - [Seminal paper on Lit Spheres (aka Matcaps)](https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.445.6888&rep=rep1&type=pdf)
+  - [Documentation for the MeshMatcapMaterial in Three.js](https://threejs.org/docs/index.html#api/en/materials/MeshMatcapMaterial)
+  - [Library of matcap PNG textures organized by color](https://github.com/nidorx/matcaps)
