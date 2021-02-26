@@ -303,7 +303,7 @@ function getAngularBlurProgram (context) {
                 float l = length(uv);
                 vec3 base = vec3(0.);
                 float sumWeights = 0.;
-                float iterations = clamp(100., 1., 180.);
+                float iterations = round(20. + pow(angle, 0.4) * 80.);
 
                 float angleMultiplier = getAngleMultiplier(uv * 2.) * 6.283185307179586 * angle / iterations / 2.;
 
