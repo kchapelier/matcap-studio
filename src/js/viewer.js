@@ -223,7 +223,9 @@ Viewer.prototype.updateModel = function (fileName, data) {
 
 
 Viewer.prototype.downloadModel = function (model, normal, done) {
-    const normalMap = normal ? memoizedLoader(textureLoader, 'assets/models/' + normal, noop) : null;
+    const normalMap = normal ? memoizedLoader(textureLoader, 'assets/models/' + normal, () => {
+        this.forceRender = true;
+    }) : null;
 
     if (model.match(/\.prwm$/)) {
         memoizedLoader(prwmLoader, 'assets/models/' + model, bufferGeometry => {
