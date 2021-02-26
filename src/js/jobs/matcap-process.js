@@ -277,6 +277,7 @@ function getAngularBlurProgram (context) {
             uniform vec2 resolution;
 
             uniform float angle;
+            uniform float lumaBias;
             uniform float parabolaFactor;
             uniform float distanceFactor;
             uniform float distancePower;
@@ -308,13 +309,18 @@ function getAngularBlurProgram (context) {
                 float angleMultiplier = getAngleMultiplier(uv * 2.) * 6.283185307179586 * angle / iterations / 2.;
 
                 for (float i = -iterations; i <= iterations; i++) {
-                    float k = (i + iterations) / (iterations * 2. + 0.00001);
-                    float w = pow(4.0 * k * (1. - k), parabolaFactor);
                     float an = a + i * angleMultiplier;
                     uv.x = cos(an) * l + icenter.x;
                     uv.y = sin(an) * l + icenter.y;
                     
-                    base += texture(source, clamp(uv, 0.0, 1.0)).rgb * w;
+                    vec3 col = texture(source, clamp(uv, 0.0, 1.0)).rgb;
+                    float luma = clamp(dot(col.rgb, vec3(0.299, 0.587, 0.114)), 0., 1.);
+
+                    float k = (i + iterations) / (iterations * 2. + 0.00001);
+                    float w = pow(4.0 * k * (1. - k), parabolaFactor);
+                    float wbias = abs(lumaBias * 10.) * pow(4.0 * k * (1. - k), parabolaFactor * 2.);
+                    w = w + pow(clamp(mix(1. - luma, luma, step(0., lumaBias)), 0., 1.), 3.) * wbias;
+                    base += col * w;
                     sumWeights+=w;
                 }
                 
@@ -330,6 +336,7 @@ function getAngularBlurProgram (context) {
         `, {
             source: 't',
             angle: 'f',
+            lumaBias: 'f',
             parabolaFactor: 'f',
             distancePower: 'f',
             distanceFactor: 'f'
@@ -389,6 +396,7 @@ function matcapProcess (context, inputs, outputs, parameters) {
     getAngularBlurProgram(context).execute({
         source: intermediateTexture,
         angle: parameters.angle,
+        lumaBias: parameters.lumaBias,
         parabolaFactor: parameters.parabolaFactor,
         distanceFactor: parameters.distanceFactor,
         distancePower: parameters.distancePower

@@ -58,6 +58,7 @@ function init () {
         hueChangeOnBackground: 0.,
 
         angle: 0.0,
+        lumaBias: 0.0,
         parabolaFactor: 4.,
         distanceFactor: 1.0,
         distancePower: 2.,
@@ -225,6 +226,7 @@ function init () {
     folder = gui.addFolder('Circular blur');
     folder.add(options, 'angle', 0.0, 1.0).step(0.001).name('Blur distance').onChange(update);
     folder.add(options, 'parabolaFactor', 1., 50.).step(0.01).name('Parabola factor').onChange(update);
+    folder.add(options, 'lumaBias', -1.0, 1.0).step(0.001).name('Luma bias').onChange(update);
     folder.add(options, 'distanceFactor', 0.0, 1.0).step(0.001).name('Distance factor').onChange(update);
     folder.add(options, 'distancePower', 0.5, 4.0).step(0.001).name('Distance power').onChange(update);
     folder.add({ reset: function () {
@@ -264,22 +266,24 @@ function init () {
         }
     }, 'download').name('Download matcap texture');
 
+    function loadMatcapFromImage(img) {
+        if (img.complete) {
+            texture = getTextureForSize(img.naturalWidth, img.naturalHeight);
+            texture.updateFromImageElement(img);
+            update(true);
+        }
+    }
+
     [...document.querySelectorAll('.js-matcap')].forEach((el, i) => {
         const img = el.querySelector('img');
 
         if (i === 0) {
-            if (img.complete) {
-                texture = getTextureForSize(img.naturalWidth, img.naturalHeight);
-                texture.updateFromImageElement(img);
-                update(true);
-            }
+            loadMatcapFromImage(img);
         }
 
         el.addEventListener('click', e => {
             e.preventDefault();
-            texture = getTextureForSize(img.naturalWidth, img.naturalHeight);
-            texture.updateFromImageElement(img);
-            update(true);
+            loadMatcapFromImage(img);
         });
     });
 
