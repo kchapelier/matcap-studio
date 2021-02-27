@@ -42,8 +42,6 @@ function getMatcapProgram (context) {
             uniform vec3 tintColor;
 
             uniform bool backgroundRegenerate;
-            uniform vec3 backgroundColor;
-            uniform float backgroundColorRatio;
             uniform float hueChangeOnBackground;
 
             uniform float iridescenceAmount;
@@ -210,10 +208,6 @@ function getMatcapProgram (context) {
                 float ratio = pow(clamp(1.-luma, 0., 1.), lumaFactor2) * (1. - pow(clamp(z, 0., 1.), iridescencePower2m)) * mask;
                 col.rgb = mix(col.rgb, iridescence, ratio * iridescenceAmount);
 
-                // background opaque color
-
-                col.rgb = mix(col.rgb, backgroundColor, backgroundColorRatio * (1. - mask));
-
                 // channel clamping
 
                 col.rgb = clamp(col.rgb, 0., 1.);
@@ -251,9 +245,7 @@ function getMatcapProgram (context) {
             lumaFactor2: 'f',
 
             hueChangeOnBackground: 'f',
-            backgroundRegenerate: 'b',
-            backgroundColor: '3f',
-            backgroundColorRatio: 'f',
+            backgroundRegenerate: 'b'
         });
     }
 
@@ -282,11 +274,14 @@ function getAngularBlurProgram (context) {
             uniform float distanceFactor;
             uniform float distancePower;
 
+            uniform vec3 backgroundColor;
+            uniform float backgroundColorRatio;
+
             uniform sampler2D source;
             uniform bool sourceSet;
             uniform vec2 sourceSize;
 
-            const vec2 center = vec2(0.5, 0.5);
+            const vec2 icenter = vec2(0.5, 0.5);
 
             float hemisphere(in vec2 cuv) {
                 return min(1.0, sqrt(max(0., 1.0 - cuv.x * cuv.x - cuv.y * cuv.y)));
@@ -297,9 +292,12 @@ function getAngularBlurProgram (context) {
             }
 
             vec4 process (in vec2 uv) {
-                vec2 icenter = vec2(center.x, center.y);
-                
+                vec2 cuv = (uv - 0.5) * 2.;
+                // used to apply opaque background color
+                float mask = clamp((70. - length(cuv*0.9925) * 69.), 0., 1.);
+
                 uv = uv - icenter;
+
                 float a = atan(uv.y, uv.x);
                 float l = length(uv);
                 vec3 base = vec3(0.);
@@ -325,6 +323,10 @@ function getAngularBlurProgram (context) {
                 }
                 
                 base = clamp(base / sumWeights, 0., 1.);
+
+                // background opaque color
+
+                base.rgb = mix(base.rgb, backgroundColor, backgroundColorRatio * (1. - mask));
                 
                 return vec4(base, 1.);
             }
@@ -339,7 +341,9 @@ function getAngularBlurProgram (context) {
             lumaBias: 'f',
             parabolaFactor: 'f',
             distancePower: 'f',
-            distanceFactor: 'f'
+            distanceFactor: 'f',
+            backgroundColor: '3f',
+            backgroundColorRatio: 'f',
         });
     }
 
@@ -386,11 +390,9 @@ function matcapProcess (context, inputs, outputs, parameters) {
         hueShift: parameters.hueShift,
         tintAmount: parameters.tintAmount,
         tintColor: parameters.tintColor.map(v => v / 255),
-        hueChangeOnBackground: parameters.hueChangeOnBackground,
 
-        backgroundRegenerate: parameters.backgroundRegenerate,
-        backgroundColor: parameters.backgroundColor.map(v => v / 255),
-        backgroundColorRatio: parameters.backgroundColorRatio,
+        hueChangeOnBackground: parameters.hueChangeOnBackground,
+        backgroundRegenerate: parameters.backgroundRegenerate
     }, intermediateTexture);
 
     getAngularBlurProgram(context).execute({
@@ -399,7 +401,9 @@ function matcapProcess (context, inputs, outputs, parameters) {
         lumaBias: parameters.lumaBias,
         parabolaFactor: parameters.parabolaFactor,
         distanceFactor: parameters.distanceFactor,
-        distancePower: parameters.distancePower
+        distancePower: parameters.distancePower,
+        backgroundColor: parameters.backgroundColor.map(v => v / 255),
+        backgroundColorRatio: parameters.backgroundColorRatio,
     }, outputs.output);
 }
 

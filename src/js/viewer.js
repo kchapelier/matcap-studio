@@ -73,6 +73,8 @@ function Viewer (viewerElement) {
         normalScale: new THREE.Vector2(1.0, 1.0)
     });
 
+    //this.patchMaterial();
+
     this.torusMesh = new THREE.Mesh(new THREE.TorusKnotGeometry(100, 30, 256, 48), this.material);
     this.setMesh(this.torusMesh, null, 'torus');
     this.setSkybox();
@@ -82,6 +84,30 @@ function Viewer (viewerElement) {
 
     this.forceRender = true;
 }
+
+Viewer.prototype.patchMaterial = function () {
+    this.material.onBeforeCompile = shader => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            '#ifdef USE_MATCAP',
+            `
+                float nz = length(normal);
+
+                #ifdef USE_MATCAP
+            `
+        );
+
+        
+        shader.fragmentShader = shader.fragmentShader.replace(
+            'gl_FragColor = vec4( outgoingLight, diffuseColor.a );',
+            `
+            gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+            `
+        );
+
+        this.material.userData.shader = shader;
+
+    };
+};
 
 Viewer.prototype.setMesh = function (newMesh, normalMap, modelId) {
     if (this.mesh !== null) {
