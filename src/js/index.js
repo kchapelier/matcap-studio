@@ -115,6 +115,7 @@ function init () {
                 const folders = Object.values(gui.__folders);
                 const allClosed = folders.reduce((a, folder) => a && folder.closed, true);
                 folders.forEach(folder => folder.closed = !allClosed);
+                gui.closed = false;
             }
 
             

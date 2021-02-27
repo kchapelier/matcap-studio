@@ -316,7 +316,7 @@ function getAngularBlurProgram (context) {
 
                     float k = (i + iterations) / (iterations * 2. + 0.00001);
                     float w = pow(4.0 * k * (1. - k), parabolaFactor);
-                    float wbias = abs(lumaBias * 10.) * pow(4.0 * k * (1. - k), parabolaFactor * 2.);
+                    float wbias = abs(pow(lumaBias, 2.) * 20.) * pow(4.0 * k * (1. - k), parabolaFactor * 2.);
                     w = w + pow(clamp(mix(1. - luma, luma, step(0., lumaBias)), 0., 1.), 3.) * wbias;
                     base += col * w;
                     sumWeights+=w;
