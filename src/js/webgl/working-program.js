@@ -8,8 +8,8 @@
  * @param {string} src Source of the shader
  * @returns {WebGLShader}
  */
-var createShader = function createShader(context, type, src) {
-  var shader = context.createShader(type);
+function createShader(context, type, src) {
+  const shader = context.createShader(type);
   context.shaderSource( shader, src );
   context.compileShader( shader );
 
@@ -20,7 +20,7 @@ var createShader = function createShader(context, type, src) {
   return shader;
 };
 
-var vertexShader = `#version 300 es
+const vertexShader = `#version 300 es
   precision highp float;
   precision highp int;
 
@@ -31,7 +31,7 @@ var vertexShader = `#version 300 es
   }
 `;
 
-var types = {
+const types = {
   'b': {
     method: 'uniform1f',
     defaultValue: 0
@@ -79,16 +79,16 @@ function WorkingWebGLProgram (context, fragmentShader, uniforms) {
  * @protected
  */
 WorkingWebGLProgram.prototype.initialize = function () {
-  var gl = this.context.working.gl;
-  var fragmentShader = this.inputs.fragmentShader;
-  var uniforms = this.inputs.uniforms;
+  const gl = this.context.working.gl;
+  const fragmentShader = this.inputs.fragmentShader;
+  const uniforms = this.inputs.uniforms;
 
   this.program = gl.createProgram();
-  this.vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShader);
-  this.fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShader);
+  const vertexShaderInstance = createShader(gl, gl.VERTEX_SHADER, vertexShader);
+  const fragmentShaderInstance = createShader(gl, gl.FRAGMENT_SHADER, fragmentShader);
 
-  gl.attachShader(this.program, this.vertexShader);
-  gl.attachShader(this.program, this.fragmentShader);
+  gl.attachShader(this.program, vertexShaderInstance);
+  gl.attachShader(this.program, fragmentShaderInstance);
 
   gl.linkProgram(this.program);
   gl.validateProgram(this.program);
@@ -97,17 +97,20 @@ WorkingWebGLProgram.prototype.initialize = function () {
     throw new Error('Could not initialise shaders: ' + gl.getProgramInfoLog(this.program));
   }
 
+  gl.deleteShader(vertexShaderInstance);
+  gl.deleteShader(fragmentShaderInstance);
+
   uniforms.resolution = '2f';
   uniforms.seed = '1f';
 
-  var uniformsKeys = Object.keys(uniforms);
+  const uniformsKeys = Object.keys(uniforms);
   this.uniformsInfo = [];
   this.texturesInfo = [];
 
-  var textureNumber = 0;
-  for (var i = 0; i < uniformsKeys.length; i++) {
-    var uniform = uniformsKeys[i];
-    var type = uniforms[uniform];
+  let textureNumber = 0;
+  for (let i = 0; i < uniformsKeys.length; i++) {
+    const uniform = uniformsKeys[i];
+    const type = uniforms[uniform];
 
     if (type === 't') {
       this.texturesInfo.push({
@@ -163,19 +166,19 @@ WorkingWebGLProgram.prototype.execute = function (uniforms, workingTexture) {
     uniforms.seed = 0.;
   }
 
-  var context = this.context;
-  var program = this.getProgram();
-  var isActualWorkingTexture = workingTexture.constructor.name === 'WorkingTexture';
-  var frameBuffer = isActualWorkingTexture ? workingTexture.getFrameBuffer() : null;
+  const context = this.context;
+  const program = this.getProgram();
+  const isActualWorkingTexture = workingTexture.constructor.name === 'WorkingTexture';
+  const frameBuffer = isActualWorkingTexture ? workingTexture.getFrameBuffer() : null;
 
   context.working.resize(workingTexture.width, workingTexture.height);
 
   context.working.gl.useProgram(program);
 
-  for (var i = 0; i < this.uniformsInfo.length; i++) {
-    var uniform = this.uniformsInfo[i];
-    var value = uniform.defaultValue;
-    var typeOfValue = typeof uniforms[uniform.id];
+  for (let i = 0; i < this.uniformsInfo.length; i++) {
+    const uniform = this.uniformsInfo[i];
+    let value = uniform.defaultValue;
+    const typeOfValue = typeof uniforms[uniform.id];
 
     if (typeOfValue === 'boolean') {
       value = uniforms[uniform.id] ? 1 : 0;
@@ -186,9 +189,9 @@ WorkingWebGLProgram.prototype.execute = function (uniforms, workingTexture) {
     context.working.gl[uniform.method].apply(context.working.gl, [uniform.location].concat(value));
   }
 
-  for (i = 0; i < this.texturesInfo.length; i++) {
-    var texture = this.texturesInfo[i];
-    var value = uniforms[texture.id];
+  for (let i = 0; i < this.texturesInfo.length; i++) {
+    const texture = this.texturesInfo[i];
+    const value = uniforms[texture.id];
 
     context.working.gl.activeTexture(texture.textureUnit);
     context.working.gl.bindTexture(context.working.gl.TEXTURE_2D, value && typeof value.getTexture === 'function' ? value.getTexture() : context.working.defaultTexture);
@@ -205,8 +208,8 @@ WorkingWebGLProgram.prototype.execute = function (uniforms, workingTexture) {
 
   // clean the webgl context
 
-  for (i = 0; i < this.texturesInfo.length; i++) {
-    var texture = this.texturesInfo[i];
+  for (let i = 0; i < this.texturesInfo.length; i++) {
+    const texture = this.texturesInfo[i];
 
     context.working.gl.activeTexture(texture.textureUnit);
     context.working.gl.bindTexture(context.working.gl.TEXTURE_2D, null);
@@ -214,8 +217,6 @@ WorkingWebGLProgram.prototype.execute = function (uniforms, workingTexture) {
 
   context.working.gl.useProgram(null);
   context.working.gl.bindFramebuffer(context.working.gl.FRAMEBUFFER, null);
-
-  isActualWorkingTexture && workingTexture.updateFromInternalTexture();
 };
 
 /**
@@ -225,15 +226,11 @@ WorkingWebGLProgram.prototype.execute = function (uniforms, workingTexture) {
  */
 WorkingWebGLProgram.prototype.dispose = function () {
   if (this.program) {
-    var gl = this.context.working.gl;
+    const gl = this.context.working.gl;
 
     gl.deleteProgram(this.program);
-    gl.deleteShader(this.vertexShader);
-    gl.deleteShader(this.fragmentShader);
 
     this.program = null;
-    this.vertexShader = null;
-    this.fragmentShader = null;
   }
 };
 
