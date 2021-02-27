@@ -1,7 +1,6 @@
 "use strict";
 
 // TODO flag texture updates and viewer updates separately for even better perfs
-// TODO fix var/let/const soup
 
 const Context = require('./webgl/context');
 const matcapProcess = require('./jobs/matcap-process');
@@ -109,8 +108,16 @@ function init () {
     });
 
     window.addEventListener('keydown', e => {
-        if (document.activeElement.type !== 'text' && e.which === 72) {
-            body.classList.toggle('hide-gui');
+        if (document.activeElement.type !== 'text') {
+            if (e.which === 72) {
+                body.classList.toggle('hide-gui');
+            } else if (e.which === 88) {
+                const folders = Object.values(gui.__folders);
+                const allClosed = folders.reduce((a, folder) => a && folder.closed, true);
+                folders.forEach(folder => folder.closed = !allClosed);
+            }
+
+            
         }
     });
 
