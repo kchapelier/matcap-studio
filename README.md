@@ -33,7 +33,8 @@ Make sure to contact me, either on [Twitter](https://twitter.com/kchplr) or thro
 
 ## History
 
- - **0.2.0 (2021-02-27):** Add luma bias parameter to circular blur, apply opaque color background after blur, make number of texture samples in the blur pass parameter-dependent, add hotkey to expand/close all controls.
+ - **0.3.0 (2021-03-09):** Add new iridescence model, add "Reset all" button
+ - **0.2.0 (2021-02-27):** Add luma bias parameter to circular blur, apply opaque color background after blur, make number of texture samples in the blur pass parameter-dependent, add hotkey to expand/close all controls
  - **0.1.2 (2021-02-25):** Better memory management, avoid redundant renders of the 3d model, simplified skybox
  - **0.1.1 (2021-02-24):** Fix minor UI issues
  - **0.1.0 (2021-02-23):** First release
