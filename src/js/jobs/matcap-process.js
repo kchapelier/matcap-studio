@@ -18,8 +18,11 @@ function getMatcapProgram (context) {
 
             layout(location = 0) out vec4 fragColor;
 
-            const int TYPE_SMOOTH = 1;
-            const int TYPE_STANDARD = 0;
+            const int COLORS_MODEL_SMOOTH = 1;
+            const int COLORS_MODEL_STANDARD = 0;
+
+            const int IRIDESCENCE_MODEL_FRESNEL = 0;
+            const int IRIDESCENCE_MODEL_CHROMATIC_ABHERRATION = 1;
 
             const float PI2 = 6.2831853;
 
@@ -30,8 +33,8 @@ function getMatcapProgram (context) {
             uniform float zoom;
 
             uniform float rotation;
-            uniform float multiplier;
-            uniform float add;
+            uniform float curveMultiplier;
+            uniform float curveAdd;
 
             uniform int type;
             uniform float hueShift;
@@ -44,12 +47,17 @@ function getMatcapProgram (context) {
             uniform bool backgroundRegenerate;
             uniform float hueChangeOnBackground;
 
+            uniform int iridescenceType;
             uniform float iridescenceAmount;
             uniform float iridescenceScale;
-            uniform float iridescencePower;
+            uniform float iridescencePower1;
             uniform float iridescencePower2;
-            uniform float lumaFactor1;
-            uniform float lumaFactor2;
+            uniform float iridescenceLumaFactor1;
+            uniform float iridescenceLumaFactor2;
+
+            uniform float iridescenceReductionByLuma;
+            uniform float iridescenceGreenOffset;
+            uniform float iridescenceBlueOffset;
 
             uniform sampler2D source;
             uniform bool sourceSet;
@@ -107,7 +115,7 @@ function getMatcapProgram (context) {
                 return hsl2rgb(color);
             }
 
-            vec2 rotate(vec2 v, float a) {
+            vec2 rotate(in vec2 v, in float a) {
                 float s = sin(a);
                 float c = cos(a);
                 mat2 m = mat2(c, -s, s, c);
@@ -118,10 +126,60 @@ function getMatcapProgram (context) {
                 return min(1.0, sqrt(max(0., 1.0 - cuv.x * cuv.x - cuv.y * cuv.y)));
             }
 
+            float luma(in vec3 col) {
+                return clamp(dot(col.rgb, vec3(0.299, 0.587, 0.114)), 0., 1.);
+            }
+
             vec4 sampleSource(in vec2 uv) {
                 vec2 scaleSource = sourceSize / min(sourceSize.x, sourceSize.y);
                 vec2 nuv = rotate(uv - 0.5, rotation * PI2) / zoom / scaleSource + 0.5 - vec2(translationX, translationY) * 0.5;
                 return texture(source, nuv);
+            }
+
+            vec3 applyCurveTransformation (vec3 cuv3, in float multiplier, in float add) {
+                cuv3.z = cuv3.z * multiplier + add;
+                return normalize(cuv3);
+            }
+
+            vec4 applyColorTransformations (vec4 col, float colLuma, float mask) {
+                // hue shift
+
+                col.rgb = mix(
+                    col.rgb,
+                    mix(hslShift(col.rgb), col.rgb, step(fract(hueShift), 0.)),
+                    mix(mask, 1., hueChangeOnBackground)
+                );
+
+                // brightness and contrast
+
+                if (type == COLORS_MODEL_SMOOTH) {
+                    // apply contrast
+                    // very arbitrary mapping from [-1,1] to [0. (0**(1+0)), 3. (2**(1+0.5849625007))]
+                    float icontrast = pow(contrast + 1., 1.0 + 0.5849625007 * pow((contrast + 1.) / 2., 4.));
+                    col.rgb = (col.rgb - 0.5) * icontrast + 0.5;
+                    //apply brightness
+                    float midPoint = 0.5 + brightness / 4.0;
+                    float range = min(abs(midPoint), abs(1. - midPoint));
+                    col.rgb = mix(vec3(midPoint - range), vec3(midPoint + range), col.rgb);
+                } else {
+                    col.rgb = (col.rgb - 0.5) * (contrast + 1.) + brightness + 0.5;
+                }
+
+                // desaturation and tinting
+
+                col.rgb = mix(
+                    vec3(colLuma),
+                    col.rgb,
+                    saturation
+                );
+
+                col.rgb = mix(
+                    col.rgb,
+                    vec3(colLuma) * tintColor,
+                    tintAmount * mix(mask, 1., hueChangeOnBackground)
+                );
+
+                return col;
             }
 
             vec4 process (in vec2 uv) {
@@ -133,9 +191,7 @@ function getMatcapProgram (context) {
                 float z = hemisphere(cuv);
                 vec3 cuv3 = vec3(cuv, z);
                 float h = length(cuv3.xy);
-
-                cuv3.z = cuv3.z * multiplier + add;
-                cuv3 = normalize(cuv3);
+                cuv3 = applyCurveTransformation(cuv3, curveMultiplier, curveAdd);
 
                 vec4 col = vec4(0.);
 
@@ -156,57 +212,47 @@ function getMatcapProgram (context) {
                     );
                 }
 
-                // hue shift
-
-                col.rgb = mix(
-                    col.rgb,
-                    mix(hslShift(col.rgb), col.rgb, step(fract(hueShift), 0.)),
-                    mix(mask, 1., hueChangeOnBackground)
-                );
-
-                // brightness and contrast
-
-                if (type == TYPE_SMOOTH) {
-                    // apply contrast
-                    // very arbitrary mapping from [-1,1] to [0. (0**(1+0)), 3. (2**(1+0.5849625007))]
-                    float icontrast = pow(contrast + 1., 1.0 + 0.5849625007 * pow((contrast + 1.) / 2., 4.));
-                    col.rgb = (col.rgb - 0.5) * icontrast + 0.5;
-                    //apply brightness
-                    float midPoint = 0.5 + brightness / 4.0;
-                    float range = min(abs(midPoint), abs(1. - midPoint));
-                    col.rgb = mix(vec3(midPoint - range), vec3(midPoint + range), col.rgb);
-                } else {
-                    col.rgb = (col.rgb - 0.5) * (contrast + 1.) + brightness + 0.5;
-                }
-
-                // desaturation and tinting
-
-                float luma = clamp(dot(col.rgb, vec3(0.299, 0.587, 0.114)), 0., 1.);
-
-                col.rgb = mix(
-                    vec3(luma),
-                    col.rgb,
-                    saturation
-                );
-
-                col.rgb = mix(
-                    col.rgb,
-                    vec3(luma) * tintColor,
-                    tintAmount * mix(mask, 1., hueChangeOnBackground)
-                );
+                float colLuma = luma(col.rgb);
+                col = applyColorTransformations(col, colLuma, mask);
 
                 // iridescence
 
-                float lz = z * mix(1., 0.2 + 0.8 * z, clamp(luma * lumaFactor1, 0., 1.));
+                if (iridescenceType == IRIDESCENCE_MODEL_CHROMATIC_ABHERRATION) {
+                    // modify each cuv curve with multiplier to offset them
+                    float cuv3gMultiplier = iridescenceGreenOffset * mix(0.8, 0.6, (1. + sign(iridescenceGreenOffset)) * 0.5);
+                    float cuv3bMultiplier = iridescenceBlueOffset * mix(0.8, 0.6, (1. + sign(iridescenceBlueOffset)) * 0.5);
+                    vec3 cuv3g = applyCurveTransformation(cuv3, 1.0 + sign(iridescenceGreenOffset) * pow(abs(cuv3gMultiplier), 1.5) * (1. - pow(z, 1.3) * 0.5), 0.);
+                    vec3 cuv3b = applyCurveTransformation(cuv3, 1.0 + sign(iridescenceBlueOffset) * pow(abs(cuv3bMultiplier), 1.5) * (1. - pow(z, 1.3) * 0.5), 0.);
 
-                float iridescencePower2m = 0.01 + 0.99 * iridescencePower2;
+                    // sample each offsetted channel and apply color transformations to them
+                    vec4 colg = sampleSource(cuv3g.xy * 0.5 + 0.5);
+                    colg = applyColorTransformations(colg, luma(colg.rgb), mask);
+                    vec4 colb = sampleSource(cuv3b.xy * 0.5 + 0.5);
+                    colb = applyColorTransformations(colb, luma(colb.rgb), mask);
 
-                float nz = pow(pow(lz, 1. / iridescencePower2m), iridescencePower) * iridescenceScale;
+                    // get luma factor
+                    float colLumaFactor = mix(0., 1. - colLuma, iridescenceReductionByLuma);
 
-                vec3 iridescence = mix(vec3(1.5,1., 0.1), vec3(0.1, 0.0, 1.5), clamp(nz, 0., 1.));
+                    // merge the iridescence channel using luma factor
+                    vec3 iricol = col.rgb * vec3(1., colLumaFactor, colLumaFactor);
+                    iricol += colg.rgb * vec3(0., 1. - colLumaFactor, 0.);
+                    iricol += colb.rgb * vec3(0., 0., 1. - colLumaFactor);
 
-                float ratio = pow(clamp(1.-luma, 0., 1.), lumaFactor2) * (1. - pow(clamp(z, 0., 1.), iridescencePower2m)) * mask;
-                col.rgb = mix(col.rgb, iridescence, ratio * iridescenceAmount);
+                    // apply the iridescence
+                    col.rgb = mix(col.rgb, clamp(iricol, 0., 1.), mask * iridescenceAmount);
+                } else {
+                    // arbitrarily compute the iridescence based on the fresnel / hemisphere height
+                    float lz = z * mix(1., 0.2 + 0.8 * z, clamp(colLuma * iridescenceLumaFactor1, 0., 1.));
+                    float iridescencePower2m = 0.01 + 0.99 * iridescencePower2;
+                    float nz = pow(pow(lz, 1. / iridescencePower2m), iridescencePower1) * iridescenceScale;
+                    vec3 iridescence = mix(vec3(1.5,1., 0.1), vec3(0.1, 0.0, 1.5), clamp(nz, 0., 1.));
+
+                    // apply the iridescence
+                    float ratio = pow(clamp(1. - colLuma, 0., 1.), iridescenceLumaFactor2) * (1. - pow(clamp(z, 0., 1.), iridescencePower2m)) * mask;
+                    //col.rgb = mix(col.rgb, iridescence, ratio * iridescenceAmount);
+
+                    col.rgb = col.rgb * (1. - ratio * 0.1) + iridescence * ratio * iridescenceAmount;
+                }
 
                 // channel clamping
 
@@ -226,8 +272,8 @@ function getMatcapProgram (context) {
             zoom: 'f',
 
             rotation: 'f',
-            multiplier: 'f',
-            add: 'f',
+            curveMultiplier: 'f',
+            curveAdd: 'f',
 
             type: 'i',
             hueShift: 'f',
@@ -237,12 +283,17 @@ function getMatcapProgram (context) {
             tintAmount: 'f',
             tintColor: '3f',
 
+            iridescenceType: 'i',
             iridescenceAmount: 'f',
             iridescenceScale: 'f',
-            iridescencePower: 'f',
+            iridescencePower1: 'f',
             iridescencePower2: 'f',
-            lumaFactor1: 'f',
-            lumaFactor2: 'f',
+            iridescenceLumaFactor1: 'f',
+            iridescenceLumaFactor2: 'f',
+
+            iridescenceReductionByLuma: 'f',
+            iridescenceGreenOffset: 'f',
+            iridescenceBlueOffset: 'f',
 
             hueChangeOnBackground: 'f',
             backgroundRegenerate: 'b'
@@ -268,11 +319,11 @@ function getAngularBlurProgram (context) {
 
             uniform vec2 resolution;
 
-            uniform float angle;
-            uniform float lumaBias;
-            uniform float parabolaFactor;
-            uniform float distanceFactor;
-            uniform float distancePower;
+            uniform float circularBlurAngle;
+            uniform float circularBlurLumaBias;
+            uniform float circularBlurParabolaFactor;
+            uniform float circularBlurDistanceFactor;
+            uniform float circularBlurDistancePower;
 
             uniform vec3 backgroundColor;
             uniform float backgroundColorRatio;
@@ -288,7 +339,7 @@ function getAngularBlurProgram (context) {
             }
             
             float getAngleMultiplier (vec2 uv) {
-                return (1.0 - distanceFactor) + distanceFactor * pow(1. - hemisphere(uv), distancePower);
+                return (1.0 - circularBlurDistanceFactor) + circularBlurDistanceFactor * pow(1. - hemisphere(uv), circularBlurDistancePower);
             }
 
             vec4 process (in vec2 uv) {
@@ -302,9 +353,9 @@ function getAngularBlurProgram (context) {
                 float l = length(uv);
                 vec3 base = vec3(0.);
                 float sumWeights = 0.;
-                float iterations = round(20. + pow(angle, 0.4) * 80.);
+                float iterations = round(20. + pow(circularBlurAngle, 0.4) * 80.);
 
-                float angleMultiplier = getAngleMultiplier(uv * 2.) * 6.283185307179586 * angle / iterations / 2.;
+                float angleMultiplier = getAngleMultiplier(uv * 2.) * 6.283185307179586 * circularBlurAngle / iterations / 2.;
 
                 for (float i = -iterations; i <= iterations; i++) {
                     float an = a + i * angleMultiplier;
@@ -315,9 +366,9 @@ function getAngularBlurProgram (context) {
                     float luma = clamp(dot(col.rgb, vec3(0.299, 0.587, 0.114)), 0., 1.);
 
                     float k = (i + iterations) / (iterations * 2. + 0.00001);
-                    float w = pow(4.0 * k * (1. - k), parabolaFactor);
-                    float wbias = abs(pow(lumaBias, 2.) * 20.) * pow(4.0 * k * (1. - k), parabolaFactor * 2.);
-                    w = w + pow(clamp(mix(1. - luma, luma, step(0., lumaBias)), 0., 1.), 3.) * wbias;
+                    float w = pow(4.0 * k * (1. - k), circularBlurParabolaFactor);
+                    float wbias = abs(pow(circularBlurLumaBias, 2.) * 20.) * pow(4.0 * k * (1. - k), circularBlurParabolaFactor * 2.);
+                    w = w + pow(clamp(mix(1. - luma, luma, step(0., circularBlurLumaBias)), 0., 1.), 3.) * wbias;
                     base += col * w;
                     sumWeights+=w;
                 }
@@ -337,11 +388,11 @@ function getAngularBlurProgram (context) {
             }
         `, {
             source: 't',
-            angle: 'f',
-            lumaBias: 'f',
-            parabolaFactor: 'f',
-            distancePower: 'f',
-            distanceFactor: 'f',
+            circularBlurAngle: 'f',
+            circularBlurLumaBias: 'f',
+            circularBlurParabolaFactor: 'f',
+            circularBlurDistancePower: 'f',
+            circularBlurDistanceFactor: 'f',
             backgroundColor: '3f',
             backgroundColorRatio: 'f',
         });
@@ -368,24 +419,30 @@ function matcapProcess (context, inputs, outputs, parameters) {
   
     getMatcapProgram(context).execute({
         source: inputs.input,
+
         translationX: parameters.translationX,
         translationY: parameters.translationY,
-        rotation: parameters.rotation,
-        rotation: parameters.rotation,
         zoom: parameters.zoom,
-        multiplier: parameters.multiplier,
-        add: parameters.add,
+
+        rotation: parameters.rotation,
+        curveMultiplier: parameters.curveMultiplier,
+        curveAdd: parameters.curveAdd,
+
         type: parameters.type,
         brightness: parameters.brightness,
         contrast: parameters.contrast,
         saturation: parameters.saturation,
 
+        iridescenceType: parameters.iridescenceType,
         iridescenceAmount: parameters.iridescenceAmount,
-        iridescencePower: parameters.iridescencePower,
         iridescenceScale: parameters.iridescenceScale,
+        iridescencePower1: parameters.iridescencePower1,
         iridescencePower2: parameters.iridescencePower2,
-        lumaFactor1: parameters.lumaFactor1,
-        lumaFactor2: parameters.lumaFactor2,
+        iridescenceLumaFactor1: parameters.iridescenceLumaFactor1,
+        iridescenceLumaFactor2: parameters.iridescenceLumaFactor2,
+        iridescenceReductionByLuma: parameters.iridescenceReductionByLuma,
+        iridescenceGreenOffset: parameters.iridescenceGreenOffset,
+        iridescenceBlueOffset: parameters.iridescenceBlueOffset,
 
         hueShift: parameters.hueShift,
         tintAmount: parameters.tintAmount,
@@ -397,11 +454,11 @@ function matcapProcess (context, inputs, outputs, parameters) {
 
     getAngularBlurProgram(context).execute({
         source: intermediateTexture,
-        angle: parameters.angle,
-        lumaBias: parameters.lumaBias,
-        parabolaFactor: parameters.parabolaFactor,
-        distanceFactor: parameters.distanceFactor,
-        distancePower: parameters.distancePower,
+        circularBlurAngle: parameters.circularBlurAngle,
+        circularBlurLumaBias: parameters.circularBlurLumaBias,
+        circularBlurParabolaFactor: parameters.circularBlurParabolaFactor,
+        circularBlurDistanceFactor: parameters.circularBlurDistanceFactor,
+        circularBlurDistancePower: parameters.circularBlurDistancePower,
         backgroundColor: parameters.backgroundColor.map(v => v / 255),
         backgroundColorRatio: parameters.backgroundColorRatio,
     }, outputs.output);

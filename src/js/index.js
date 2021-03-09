@@ -1,7 +1,5 @@
 "use strict";
 
-// TODO flag texture updates and viewer updates separately for even better perfs
-
 const Context = require('./webgl/context');
 const matcapProcess = require('./jobs/matcap-process');
 const Viewer = require('./viewer');
@@ -34,34 +32,38 @@ function init () {
         translationX: 0,
         translationY: 0,
         zoom: 1.0,
-        rotation: 0.0,
 
-        multiplier: 1.0,
-        add: 0.0,
+        rotation: 0.0,
+        curveMultiplier: 1.0,
+        curveAdd: 0.0,
 
         type: 0,
         brightness: 0.0,
         contrast: 0.0,
         saturation: 1.0,
-
-        iridescenceAmount: 0.0,
-        iridescenceScale: 1.,
-        iridescencePower: 2.,
-        iridescencePower2: 2.,
-        lumaFactor1: 0.5,
-        lumaFactor2: 0.5,
-
         hueShift: 0.,
         tintAmount: 0,
         tintColor: [1., 1., 1.].map(v => v * 255 | 0),
+
+        iridescenceType: 1,
+        iridescenceAmount: 0.0,
+        iridescenceScale: 1.,
+        iridescencePower1: 2.,
+        iridescencePower2: 2.,
+        iridescenceLumaFactor1: 0.5,
+        iridescenceLumaFactor2: 0.5,
+
+        iridescenceReductionByLuma: 0.75,
+        iridescenceGreenOffset: 0.2,
+        iridescenceBlueOffset: -0.5,
+
+        circularBlurAngle: 0.0,
+        circularBlurLumaBias: 0.0,
+        circularBlurParabolaFactor: 4.,
+        circularBlurDistanceFactor: 1.0,
+        circularBlurDistancePower: 2.,
+
         hueChangeOnBackground: 0.,
-
-        angle: 0.0,
-        lumaBias: 0.0,
-        parabolaFactor: 4.,
-        distanceFactor: 1.0,
-        distancePower: 2.,
-
         backgroundRegenerate: false,
         backgroundColor:  [0., 0., 0.].map(v => v * 255 | 0),
         backgroundColorRatio: 0.0,
@@ -71,36 +73,50 @@ function init () {
 
     const options = Object.assign({}, defaults);
 
-    let updateRequested = false;
+    let matcapUpdateRequested = false;
+    let viewerUpdateRequested = false;
     let previousState = '';
 
     (function loop() {
-        if (updateRequested) {
+        if (matcapUpdateRequested || viewerUpdateRequested) {
             // dat.gui is quite fond of sending unecessary update events, make sure the state changed
             const newState = JSON.stringify(options);
 
             if (newState !== previousState) {
                 previousState = newState;
 
-                matcapProcess(context, { input: texture }, { output: { width: 512, height: 512 }}, options);
+                if (matcapUpdateRequested) {
+                    matcapProcess(context, { input: texture }, { output: { width: 512, height: 512 }}, options);
+                    viewer.updateTexture(context.working.canvas);
+                }
 
-                viewer.updateTexture(context.working.canvas);
-                viewer.updateViewer(options);
+                if (viewerUpdateRequested) {
+                    viewer.updateViewer(options);
+                }
             }
 
-            updateRequested = false;
+            matcapUpdateRequested = false;
+            viewerUpdateRequested = false;
         }
 
         viewer.update();
         requestAnimationFrame(loop);
     })();
 
-    function update(force) {
+    function requestMatcapUpdate(force) {
         if (force) {
             previousState = '';
         }
 
-        updateRequested = true;
+        matcapUpdateRequested = true;
+    }
+
+    function requestViewerUpdate(force) {
+        if (force) {
+            previousState = '';
+        }
+
+        viewerUpdateRequested = true;
     }
 
     window.addEventListener('resize', () => {
@@ -154,7 +170,7 @@ function init () {
                     texture = getTextureForSize(width, height);
                     texture.updateFromImageElement(img);
 
-                    update(true);
+                    requestMatcapUpdate(true);
                 };
                 img.src = e.target.result;
             };
@@ -187,74 +203,102 @@ function init () {
             }
         }
 
-        update(false);
+        requestMatcapUpdate(false);
+        requestViewerUpdate(false);
+    }
+
+    const iridescenceTypesControls = [[], []];
+
+    function updateIridescencControls() {
+        iridescenceTypesControls[0].forEach(control => control.__li.style.display = 'none');
+        iridescenceTypesControls[1].forEach(control => control.__li.style.display = 'none');
+        iridescenceTypesControls[options.iridescenceType].forEach(control => control.__li.style.display = '');
     }
 
     const gui = new dat.GUI({ width: guiElement.getBoundingClientRect().width, hideable: false, autoPlace: false });
     guiElement.appendChild(gui.domElement);
     let folder = gui.addFolder('Source image modifier');
-    folder.add(options, 'translationX', -1.0, 1.0).step(0.001).name('X').onChange(update);
-    folder.add(options, 'translationY', -1.0, 1.0).step(0.001).name('Y').onChange(update);
-    folder.add(options, 'zoom', 1.0, 10.0).step(0.001).name('Zoom').onChange(update);
+    folder.add(options, 'translationX', -1.0, 1.0).step(0.001).name('X').onChange(requestMatcapUpdate);
+    folder.add(options, 'translationY', -1.0, 1.0).step(0.001).name('Y').onChange(requestMatcapUpdate);
+    folder.add(options, 'zoom', 1.0, 10.0).step(0.001).name('Zoom').onChange(requestMatcapUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Source image modifier');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Curve and rotation');
-    folder.add(options, 'rotation', 0.0, 1.0).step(0.001).name('Rotation').onChange(update);
-    folder.add(options, 'multiplier', 0.5, 4.0).step(0.001).name('Curve multiplier').onChange(update);
-    folder.add(options, 'add', 0.0, 1.0).step(0.001).name('Curve increase').onChange(update);
+    folder.add(options, 'rotation', 0.0, 1.0).step(0.001).name('Rotation').onChange(requestMatcapUpdate);
+    folder.add(options, 'curveMultiplier', 0.5, 4.0).step(0.001).name('Curve multiplier').onChange(requestMatcapUpdate);
+    folder.add(options, 'curveAdd', 0.0, 1.0).step(0.001).name('Curve increase').onChange(requestMatcapUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Curve and rotation');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Colors');
-    folder.add(options, 'type', { Standard: 0, Smooth: 1 }).name('Color model').onChange(update);
-    folder.add(options, 'hueShift', -1.0, 1.0).step(0.001).name('Hue shift').onChange(update);
-    folder.add(options, 'brightness', -1.0, 1.0).step(0.001).name('Brightness').onChange(update);
-    folder.add(options, 'contrast', -1.0, 1.0).step(0.001).name('Contrast').onChange(update);
-    folder.add(options, 'saturation', 0.0, 2.0).step(0.001).name('Saturation').onChange(update);
-    folder.add(options, 'tintAmount', 0.0, 1.0).step(0.001).name('Tint amount').onChange(update);
-    folder.addColor(options, 'tintColor').name('Tint color').onChange(update);
+    folder.add(options, 'type', { Standard: 0, Smooth: 1 }).name('Color model').onChange(requestMatcapUpdate);
+    folder.add(options, 'hueShift', -1.0, 1.0).step(0.001).name('Hue shift').onChange(requestMatcapUpdate);
+    folder.add(options, 'brightness', -1.0, 1.0).step(0.001).name('Brightness').onChange(requestMatcapUpdate);
+    folder.add(options, 'contrast', -1.0, 1.0).step(0.001).name('Contrast').onChange(requestMatcapUpdate);
+    folder.add(options, 'saturation', 0.0, 2.0).step(0.001).name('Saturation').onChange(requestMatcapUpdate);
+    folder.add(options, 'tintAmount', 0.0, 1.0).step(0.001).name('Tint amount').onChange(requestMatcapUpdate);
+    folder.addColor(options, 'tintColor').name('Tint color').onChange(requestMatcapUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Colors');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Iridescence');
-    folder.add(options, 'iridescenceAmount', 0.0, 1.0).step(0.001).name('Amount').onChange(update);
-    folder.add(options, 'iridescenceScale', 0.0, 2.0).step(0.001).name('Scale').onChange(update);
-    folder.add(options, 'iridescencePower', 0.0, 5.0).step(0.001).name('Power 1').onChange(update);
-    folder.add(options, 'iridescencePower2', 0.0, 5.0).step(0.001).name('Power 2').onChange(update);
-    folder.add(options, 'lumaFactor1', 0.5, 4.0).step(0.001).name('Luma factor 1').onChange(update);
-    folder.add(options, 'lumaFactor2', 0.5, 2.0).step(0.001).name('Luma factor 2').onChange(update);
+    folder.add(options, 'iridescenceType', { FresnelMix: 0, ChromaticAberration: 1 }).name('Iridescence model').onChange(() => {
+        updateIridescencControls();
+        requestMatcapUpdate();
+    });
+    folder.add(options, 'iridescenceAmount', 0.0, 1.0).step(0.001).name('Amount').onChange(requestMatcapUpdate);
+    iridescenceTypesControls[0].push(folder.add(options, 'iridescenceScale', 0.0, 2.0).step(0.001).name('Scale').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[0].push(folder.add(options, 'iridescencePower1', 0.0, 5.0).step(0.001).name('Power 1').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[0].push(folder.add(options, 'iridescencePower2', 0.0, 5.0).step(0.001).name('Power 2').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[0].push(folder.add(options, 'iridescenceLumaFactor1', 0.5, 4.0).step(0.001).name('Luma factor 1').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[0].push(folder.add(options, 'iridescenceLumaFactor2', 0.5, 2.0).step(0.001).name('Luma factor 2').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[1].push(folder.add(options, 'iridescenceReductionByLuma', 0.0, 1.0).step(0.001).name('Reduction by luma').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[1].push(folder.add(options, 'iridescenceGreenOffset', -1.0, 1.0).step(0.001).name('Green offset').onChange(requestMatcapUpdate));
+    iridescenceTypesControls[1].push(folder.add(options, 'iridescenceBlueOffset', -1.0, 1.0).step(0.001).name('Blue offset').onChange(requestMatcapUpdate));
     folder.add({ reset: function () {
         resetGroupToDefaults('Iridescence');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Circular blur');
-    folder.add(options, 'angle', 0.0, 1.0).step(0.001).name('Blur distance').onChange(update);
-    folder.add(options, 'parabolaFactor', 1., 50.).step(0.01).name('Parabola factor').onChange(update);
-    folder.add(options, 'lumaBias', -1.0, 1.0).step(0.001).name('Luma bias').onChange(update);
-    folder.add(options, 'distanceFactor', 0.0, 1.0).step(0.001).name('Distance factor').onChange(update);
-    folder.add(options, 'distancePower', 0.5, 4.0).step(0.001).name('Distance power').onChange(update);
+    folder.add(options, 'circularBlurAngle', 0.0, 1.0).step(0.001).name('Blur distance').onChange(requestMatcapUpdate);
+    folder.add(options, 'circularBlurParabolaFactor', 1., 50.).step(0.01).name('Parabola factor').onChange(requestMatcapUpdate);
+    folder.add(options, 'circularBlurLumaBias', -1.0, 1.0).step(0.001).name('Luma bias').onChange(requestMatcapUpdate);
+    folder.add(options, 'circularBlurDistanceFactor', 0.0, 1.0).step(0.001).name('Distance factor').onChange(requestMatcapUpdate);
+    folder.add(options, 'circularBlurDistancePower', 0.5, 4.0).step(0.001).name('Distance power').onChange(requestMatcapUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Circular blur');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Background');
-    folder.add(options, 'backgroundRegenerate').name('Generate new BG').onChange(update);
-    folder.add(options, 'hueChangeOnBackground', 0.0, 1.0).step(0.001).name('Apply hue and tint on BG').onChange(update);
-    folder.addColor(options, 'backgroundColor').name('Opaque color').onChange(update);
-    folder.add(options, 'backgroundColorRatio', 0.0, 1.0).step(0.001).name('Opaque color ratio').onChange(update);
+    folder.add(options, 'backgroundRegenerate').name('Generate new BG').onChange(requestMatcapUpdate);
+    folder.add(options, 'hueChangeOnBackground', 0.0, 1.0).step(0.001).name('Apply hue and tint on BG').onChange(requestMatcapUpdate);
+    folder.addColor(options, 'backgroundColor').name('Opaque color').onChange(requestMatcapUpdate);
+    folder.add(options, 'backgroundColorRatio', 0.0, 1.0).step(0.001).name('Opaque color ratio').onChange(requestMatcapUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Background');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Viewer');
-    folder.add(options, 'fov', 30, 90).step(1).name('FOV').onChange(update);
+    folder.add(options, 'fov', 30, 90).step(1).name('FOV').onChange(requestViewerUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Viewer');
     }}, 'reset').name('Reset');
+
+    gui.add({
+        resetAll: function () {
+            resetGroupToDefaults('Source image modifier');
+            resetGroupToDefaults('Curve and rotation');
+            resetGroupToDefaults('Colors');
+            resetGroupToDefaults('Iridescence');
+            resetGroupToDefaults('Circular blur');
+            resetGroupToDefaults('Background');
+            resetGroupToDefaults('Viewer');
+        }
+    }, 'resetAll').name('Reset all');
 
     gui.add({
         download: function () {
@@ -278,7 +322,7 @@ function init () {
         if (img.complete) {
             texture = getTextureForSize(img.naturalWidth, img.naturalHeight);
             texture.updateFromImageElement(img);
-            update(true);
+            requestMatcapUpdate(true);
         }
     }
 
@@ -304,6 +348,8 @@ function init () {
             viewer.chooseModel(model, normal);
         });
     });
+
+    updateIridescencControls();
 }
 
 module.exports = init;
