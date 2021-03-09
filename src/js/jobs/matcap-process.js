@@ -249,9 +249,7 @@ function getMatcapProgram (context) {
 
                     // apply the iridescence
                     float ratio = pow(clamp(1. - colLuma, 0., 1.), iridescenceLumaFactor2) * (1. - pow(clamp(z, 0., 1.), iridescencePower2m)) * mask;
-                    //col.rgb = mix(col.rgb, iridescence, ratio * iridescenceAmount);
-
-                    col.rgb = col.rgb * (1. - ratio * 0.1) + iridescence * ratio * iridescenceAmount;
+                    col.rgb = mix(col.rgb, iridescence, ratio * iridescenceAmount);
                 }
 
                 // channel clamping
