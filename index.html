@@ -179,7 +179,9 @@
     <script src="vendors/three-plugins/OBJLoader.js"></script>
     <script src="build/main.js"></script>
     <script>
-      App();
+      window.addEventListener('load', (event) => {
+        App();
+      });
     </script>
   </body>
 </html>
