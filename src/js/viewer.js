@@ -46,6 +46,8 @@ function Viewer (viewerElement) {
         antialias: true
     });
 
+    this.filteredTexture = null;
+    this.unfilteredTexture = null;
     this.canvasTexture = null;
 
     this.camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 4000);
@@ -205,8 +207,12 @@ Viewer.prototype.setSkybox = function () {
     this.scene.add(this.skyboxMesh);
 };
 
-Viewer.prototype.updateTexture = function (canvas) {
-    this.canvasTexture = this.canvasTexture === null ? new THREE.CanvasTexture(canvas) : this.canvasTexture;
+Viewer.prototype.updateTexture = function (canvas, filtered) {
+    const anisotropy = Math.min(4, this.renderer.getMaxAnisotropy());
+    this.filteredTexture = this.filteredTexture === null ? new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearMipmapFilter, THREE.RGBFormat, THREE.UnsignedByteType, anisotropy) : this.filteredTexture;
+    this.unfilteredTexture = this.unfilteredTexture === null ? new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearFilter, THREE.RGBFormat, THREE.UnsignedByteType, 0) : this.unfilteredTexture;
+
+    this.canvasTexture = filtered ? this.filteredTexture : this.unfilteredTexture;
     this.canvasTexture.needsUpdate = true;
 
     this.material.matcap = this.canvasTexture; 

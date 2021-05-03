@@ -68,7 +68,8 @@ function init () {
         backgroundColor:  [0., 0., 0.].map(v => v * 255 | 0),
         backgroundColorRatio: 0.0,
 
-        fov: 50
+        fov: 50,
+        filtered: true
     };
 
     const options = Object.assign({}, defaults);
@@ -87,7 +88,7 @@ function init () {
 
                 if (matcapUpdateRequested) {
                     matcapProcess(context, { input: texture }, { output: { width: 512, height: 512 }}, options);
-                    viewer.updateTexture(context.working.canvas);
+                    viewer.updateTexture(context.working.canvas, options.filtered);
                 }
 
                 if (viewerUpdateRequested) {
@@ -284,6 +285,11 @@ function init () {
 
     folder = gui.addFolder('Viewer');
     folder.add(options, 'fov', 30, 90).step(1).name('FOV').onChange(requestViewerUpdate);
+    folder.add(options, 'filtered').name('Use mipmap on matcap').onChange(function () {
+        matcapUpdateRequested = true;
+        requestViewerUpdate();
+    });
+
     folder.add({ reset: function () {
         resetGroupToDefaults('Viewer');
     }}, 'reset').name('Reset');
