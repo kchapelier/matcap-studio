@@ -69,7 +69,8 @@ function init () {
         backgroundColorRatio: 0.0,
 
         fov: 50,
-        filtered: true
+        filtered: true,
+        anisotropy: 1
     };
 
     const options = Object.assign({}, defaults);
@@ -88,7 +89,7 @@ function init () {
 
                 if (matcapUpdateRequested) {
                     matcapProcess(context, { input: texture }, { output: { width: 512, height: 512 }}, options);
-                    viewer.updateTexture(context.working.canvas, options.filtered);
+                    viewer.updateTexture(context.working.canvas, options.filtered, options.anisotropy);
                 }
 
                 if (viewerUpdateRequested) {
@@ -286,6 +287,11 @@ function init () {
     folder = gui.addFolder('Viewer');
     folder.add(options, 'fov', 30, 90).step(1).name('FOV').onChange(requestViewerUpdate);
     folder.add(options, 'filtered').name('Use mipmap on matcap').onChange(function () {
+        matcapUpdateRequested = true;
+        requestViewerUpdate();
+        anisotropyControl.__li.style.display = options.filtered ? '' : 'none';
+    });
+    const anisotropyControl = folder.add(options, 'anisotropy', 1, viewer.getMaxAnisotropy()).step(1).name('Anisotropy').onChange(function () {
         matcapUpdateRequested = true;
         requestViewerUpdate();
     });
