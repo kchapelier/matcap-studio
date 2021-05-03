@@ -40,6 +40,7 @@ function init () {
         type: 0,
         brightness: 0.0,
         contrast: 0.0,
+        pivot: 0.5,
         saturation: 1.0,
         hueShift: 0.,
         tintAmount: 0,
@@ -240,6 +241,7 @@ function init () {
     folder.add(options, 'hueShift', -1.0, 1.0).step(0.001).name('Hue shift').onChange(requestMatcapUpdate);
     folder.add(options, 'brightness', -1.0, 1.0).step(0.001).name('Brightness').onChange(requestMatcapUpdate);
     folder.add(options, 'contrast', -1.0, 1.0).step(0.001).name('Contrast').onChange(requestMatcapUpdate);
+    folder.add(options, 'pivot', 0.2, 0.8).step(0.001).name('Contrast pivot').onChange(requestMatcapUpdate);
     folder.add(options, 'saturation', 0.0, 2.0).step(0.001).name('Saturation').onChange(requestMatcapUpdate);
     folder.add(options, 'tintAmount', 0.0, 1.0).step(0.001).name('Tint amount').onChange(requestMatcapUpdate);
     folder.addColor(options, 'tintColor').name('Tint color').onChange(requestMatcapUpdate);

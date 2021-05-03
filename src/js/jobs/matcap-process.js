@@ -40,6 +40,7 @@ function getMatcapProgram (context) {
             uniform float hueShift;
             uniform float brightness;
             uniform float contrast;
+            uniform float pivot;
             uniform float saturation;
             uniform float tintAmount;
             uniform vec3 tintColor;
@@ -156,13 +157,13 @@ function getMatcapProgram (context) {
                     // apply contrast
                     // very arbitrary mapping from [-1,1] to [0. (0**(1+0)), 3. (2**(1+0.5849625007))]
                     float icontrast = pow(contrast + 1., 1.0 + 0.5849625007 * pow((contrast + 1.) / 2., 4.));
-                    col.rgb = (col.rgb - 0.5) * icontrast + 0.5;
+                    col.rgb = (col.rgb - pivot) * icontrast + pivot;
                     //apply brightness
                     float midPoint = 0.5 + brightness / 4.0;
                     float range = min(abs(midPoint), abs(1. - midPoint));
                     col.rgb = mix(vec3(midPoint - range), vec3(midPoint + range), col.rgb);
                 } else {
-                    col.rgb = (col.rgb - 0.5) * (contrast + 1.) + brightness + 0.5;
+                    col.rgb = (col.rgb - pivot) * (contrast + 1.) + brightness + pivot;
                 }
 
                 // desaturation and tinting
@@ -277,6 +278,7 @@ function getMatcapProgram (context) {
             hueShift: 'f',
             brightness: 'f',
             contrast: 'f',
+            pivot: 'f',
             saturation: 'f',
             tintAmount: 'f',
             tintColor: '3f',
@@ -429,6 +431,7 @@ function matcapProcess (context, inputs, outputs, parameters) {
         type: parameters.type,
         brightness: parameters.brightness,
         contrast: parameters.contrast,
+        pivot: parameters.pivot,
         saturation: parameters.saturation,
 
         iridescenceType: parameters.iridescenceType,
