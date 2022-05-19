@@ -215,8 +215,8 @@ Viewer.prototype.getMaxAnisotropy = function () {
 Viewer.prototype.updateTexture = function (canvas, filtered, anisotropy) {
     anisotropy = Math.max(1, Math.min(anisotropy, this.getMaxAnisotropy()));
 
-    this.filteredTexture = this.filteredTexture === null ? new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearMipmapFilter, THREE.RGBFormat, THREE.UnsignedByteType, anisotropy) : this.filteredTexture;
-    this.unfilteredTexture = this.unfilteredTexture === null ? new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearFilter, THREE.RGBFormat, THREE.UnsignedByteType, 0) : this.unfilteredTexture;
+    this.filteredTexture = this.filteredTexture === null ? new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearMipmapLinearFilter, THREE.RGBAFormat, THREE.UnsignedByteType, anisotropy) : this.filteredTexture;
+    this.unfilteredTexture = this.unfilteredTexture === null ? new THREE.CanvasTexture(canvas, THREE.UVMapping, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.LinearFilter, THREE.RGBAFormat, THREE.UnsignedByteType, 0) : this.unfilteredTexture;
 
     this.filteredTexture.anisotropy = anisotropy;
     this.canvasTexture = filtered ? this.filteredTexture : this.unfilteredTexture;
