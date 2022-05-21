@@ -1,19 +1,19 @@
 {
   "name": "matcap-studio",
   "version": "1.0.0",
-  "description": "",
+  "description": "An utility to tweak matcaps, with realtime visual feedback.",
   "private": true,
-  "main": "webgl.js",
+  "main": "src/js/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build-scripts": "browserify src/js/index.js -d --s App -u crypto > build/main.js"
+    "build-scripts": "browserify src/js/index.js -d --s App -u crypto > build/main.js",
+    "build-scripts-prod": "browserify src/js/index.js -d --s App -u crypto | terser --ecma 5 > build/main.min.js"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "browserify": "^17.0.0",
-    "stylus": "^0.54.8",
-    "terser": "^5.6.0"
+    "terser": "^5.13.1"
   }
 }
