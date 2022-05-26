@@ -24,7 +24,8 @@ function getMatcapProgram (context) {
             const int IRIDESCENCE_MODEL_FRESNEL = 0;
             const int IRIDESCENCE_MODEL_CHROMATIC_ABHERRATION = 1;
 
-            const float PI2 = 6.2831853;
+            const float PI = 3.141592653;
+            const float PI2 = 6.283185307;
 
             uniform vec2 resolution;
 
@@ -59,6 +60,13 @@ function getMatcapProgram (context) {
             uniform float iridescenceReductionByLuma;
             uniform float iridescenceGreenOffset;
             uniform float iridescenceBlueOffset;
+            
+            uniform vec3 shadowingPosition;
+            uniform vec3 shadowingColor;
+            uniform float shadowingAmount;
+            uniform float shadowingPower;
+            uniform float shadowingHalfLambertian;
+            uniform float shadowingReductionByLuma;
 
             uniform sampler2D source;
             uniform bool sourceSet;
@@ -182,6 +190,10 @@ function getMatcapProgram (context) {
 
                 return col;
             }
+            
+            float F_ScalarSchlick(float product, float f0, float fd90) {
+              return f0 + (fd90-f0) * pow(1.0 - product, 5.0);
+            }
 
             vec4 process (in vec2 uv) {
                 vec2 cuv = (uv - 0.5) * 2.0;
@@ -252,7 +264,23 @@ function getMatcapProgram (context) {
                     float ratio = pow(clamp(1. - colLuma, 0., 1.), iridescenceLumaFactor2) * (1. - pow(clamp(z, 0., 1.), iridescencePower2m)) * mask;
                     col.rgb = mix(col.rgb, iridescence, ratio * iridescenceAmount);
                 }
-
+                
+                // shadowing
+                
+                col.rgb = clamp(col.rgb, 0., 1.);
+                
+                // generalized Lambertian / Half Lambertian
+                float NdotL = dot(normalize(shadowingPosition - cuv3), normalize(cuv3));
+                NdotL = NdotL * (1. - 0.5 * shadowingHalfLambertian) + 0.5 * shadowingHalfLambertian;
+                NdotL = sign(NdotL) * pow(abs(NdotL), 1. + shadowingHalfLambertian);
+                
+                // updated luma accounting for the iridescence
+                colLuma = luma(col.rgb);
+                
+                float shadowingLumaFactor = mix(0., colLuma, shadowingReductionByLuma);
+                float shadowingFactor = shadowingAmount * (1. - clamp(NdotL * (1. + pow(shadowingLumaFactor, 2.2)), 0., 1.));
+                col.rgb = mix(col.rgb, shadowingColor * 0.25, pow(shadowingFactor, shadowingPower));
+                
                 // channel clamping
 
                 col.rgb = clamp(col.rgb, 0., 1.);
@@ -294,6 +322,13 @@ function getMatcapProgram (context) {
             iridescenceReductionByLuma: 'f',
             iridescenceGreenOffset: 'f',
             iridescenceBlueOffset: 'f',
+
+            shadowingPosition: '3f',
+            shadowingColor: '3f',
+            shadowingAmount: 'f',
+            shadowingPower: 'f',
+            shadowingHalfLambertian: 'f',
+            shadowingReductionByLuma: 'f',
 
             hueChangeOnBackground: 'f',
             backgroundRegenerate: 'b'
@@ -416,7 +451,7 @@ function getWorkingTexture (context) {
 
 function matcapProcess (context, inputs, outputs, parameters) {
     const intermediateTexture = getWorkingTexture(context);
-  
+
     getMatcapProgram(context).execute({
         source: inputs.input,
 
@@ -448,6 +483,13 @@ function matcapProcess (context, inputs, outputs, parameters) {
         hueShift: parameters.hueShift,
         tintAmount: parameters.tintAmount,
         tintColor: parameters.tintColor.map(v => v / 255),
+
+        shadowingPosition: [parameters.shadowingPositionX, parameters.shadowingPositionY, parameters.shadowingPositionZ],
+        shadowingColor: parameters.shadowingColor.map(v => v / 255),
+        shadowingAmount: parameters.shadowingAmount,
+        shadowingPower: parameters.shadowingPower,
+        shadowingHalfLambertian: parameters.shadowingHalfLambertian,
+        shadowingReductionByLuma: parameters.shadowingReductionByLuma,
 
         hueChangeOnBackground: parameters.hueChangeOnBackground,
         backgroundRegenerate: parameters.backgroundRegenerate

@@ -64,6 +64,15 @@ function init () {
         circularBlurDistanceFactor: 1.0,
         circularBlurDistancePower: 2.,
 
+        shadowingPositionX: -2,
+        shadowingPositionY: 1.,
+        shadowingPositionZ: 0.,
+        shadowingColor: [0.0, 0.0, 0.03].map(v => v * 255 | 0),
+        shadowingAmount: 0.,
+        shadowingPower: 1.,
+        shadowingHalfLambertian: 0.5,
+        shadowingReductionByLuma: 1.,
+
         hueChangeOnBackground: 0.,
         backgroundRegenerate: false,
         backgroundColor:  [0., 0., 0.].map(v => v * 255 | 0),
@@ -267,6 +276,19 @@ function init () {
         resetGroupToDefaults('Iridescence');
     }}, 'reset').name('Reset');
 
+    folder = gui.addFolder('Shadowing');
+    folder.addColor(options, 'shadowingColor').name('Shadow color').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPositionX', -10.0, 10.0).step(0.001).name('Position X').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPositionY', -10.0, 10.0).step(0.001).name('Position Y').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPositionZ', -10.0, 10.0).step(0.001).name('Position Z').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingHalfLambertian', 0.0, 1.0).step(0.001).name('Half Lambertian Ratio').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingAmount', 0.0, 1.0).step(0.001).name('Amount').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPower', 1.0, 2.0).step(0.001).name('Power').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingReductionByLuma', 0.0, 1.0).step(0.001).name('Reduction by luma').onChange(requestMatcapUpdate);
+    folder.add({ reset: function () {
+        resetGroupToDefaults('Shadowing');
+    }}, 'reset').name('Reset');
+
     folder = gui.addFolder('Circular blur');
     folder.add(options, 'circularBlurAngle', 0.0, 1.0).step(0.001).name('Blur distance').onChange(requestMatcapUpdate);
     folder.add(options, 'circularBlurParabolaFactor', 1., 50.).step(0.01).name('Parabola factor').onChange(requestMatcapUpdate);
@@ -308,6 +330,7 @@ function init () {
             resetGroupToDefaults('Curve and rotation');
             resetGroupToDefaults('Colors');
             resetGroupToDefaults('Iridescence');
+            resetGroupToDefaults('Shadowing');
             resetGroupToDefaults('Circular blur');
             resetGroupToDefaults('Background');
             resetGroupToDefaults('Viewer');
