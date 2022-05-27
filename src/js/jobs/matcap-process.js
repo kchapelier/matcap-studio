@@ -203,6 +203,8 @@ function getMatcapProgram (context) {
 
                 float z = hemisphere(cuv);
                 vec3 cuv3 = vec3(cuv, z);
+                vec3 originalCuv3 = cuv3;
+                
                 float h = length(cuv3.xy);
                 cuv3 = applyCurveTransformation(cuv3, curveMultiplier, curveAdd);
 
@@ -270,7 +272,7 @@ function getMatcapProgram (context) {
                 col.rgb = clamp(col.rgb, 0., 1.);
                 
                 // generalized Lambertian / Half Lambertian
-                float NdotL = dot(normalize(shadowingPosition - cuv3), normalize(cuv3));
+                float NdotL = dot(normalize(shadowingPosition - originalCuv3), normalize(originalCuv3));
                 NdotL = NdotL * (1. - 0.5 * shadowingHalfLambertian) + 0.5 * shadowingHalfLambertian;
                 NdotL = sign(NdotL) * pow(abs(NdotL), 1. + shadowingHalfLambertian);
                 

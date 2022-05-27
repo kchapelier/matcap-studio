@@ -77,8 +77,8 @@ function Viewer (viewerElement) {
 
     //this.patchMaterial();
 
-    this.torusMesh = new THREE.Mesh(new THREE.TorusKnotGeometry(100, 30, 256, 48), this.material);
-    this.setMesh(this.torusMesh, null, 'torus');
+    this.torusKnotMesh = new THREE.Mesh(new THREE.TorusKnotGeometry(100, 30, 256, 48), this.material);
+    this.setMesh(this.torusKnotMesh, null, 'torusknot');
     this.setSkybox();
     this.resize();
 
@@ -289,8 +289,8 @@ Viewer.prototype.downloadModel = function (model, normal, done) {
 Viewer.prototype.chooseModel = function (model, normal) {
     if (model === this.currentModel) return;
 
-    if (model === 'torus') {
-        this.setMesh(this.torusMesh, null, model);
+    if (model === 'torusknot') {
+        this.setMesh(this.torusKnotMesh, null, model);
     } else {
         document.body.classList.add('loading');
         this.downloadModel(model, normal, (mesh, normalMap) => {
