@@ -175,16 +175,18 @@ function getMatcapProgram (context) {
                 }
 
                 // desaturation and tinting
+                
+                float updatedColLuma = luma(col.rgb);
 
                 col.rgb = mix(
-                    vec3(colLuma),
+                    vec3(updatedColLuma),
                     col.rgb,
                     saturation
                 );
 
                 col.rgb = mix(
                     col.rgb,
-                    vec3(colLuma) * tintColor,
+                    vec3(updatedColLuma) * tintColor,
                     tintAmount * mix(mask, 1., hueChangeOnBackground)
                 );
 
