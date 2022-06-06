@@ -67,6 +67,14 @@ function getMatcapProgram (context) {
             uniform float shadowingPower;
             uniform float shadowingHalfLambertian;
             uniform float shadowingReductionByLuma;
+            
+            uniform float rimWidth;
+            uniform float rimBlending;
+            uniform float rimPower;
+            uniform float rimAmount;
+            uniform vec3 rimColor;
+            uniform float rimPositionX;
+            uniform float rimPositionY;
 
             uniform sampler2D source;
             uniform bool sourceSet;
@@ -193,8 +201,10 @@ function getMatcapProgram (context) {
                 return col;
             }
             
-            float F_ScalarSchlick(float product, float f0, float fd90) {
-              return f0 + (fd90-f0) * pow(1.0 - product, 5.0);
+            float sampleFresnel(vec3 normal) {
+                vec3 viewDirectionW = normalize(normal);
+                vec3 eye = normalize(vec3(-rimPositionX, -rimPositionY, 1.0));
+                return rimWidth * clamp(1.0 - dot(eye, normal), 0.0, 1.0);
             }
 
             vec4 process (in vec2 uv) {
@@ -285,6 +295,15 @@ function getMatcapProgram (context) {
                 float shadowingFactor = shadowingAmount * (1. - clamp(NdotL * (1. + pow(shadowingLumaFactor, 2.2)), 0., 1.));
                 col.rgb = mix(col.rgb, shadowingColor * 0.25, pow(shadowingFactor, shadowingPower));
                 
+                // fresnel rim
+                
+                float fresnelRim = sampleFresnel(normalize(originalCuv3));
+                fresnelRim = clamp(pow(fresnelRim, rimPower), 0., 1.) * rimAmount * mask;
+                
+                fresnelRim = fresnelRim * mix(1., clamp(1. - distance(rimColor, col.rgb) / 1.6, 0., 1.), rimBlending);
+                
+                col.rgb = col.rgb + rimColor * fresnelRim;
+                
                 // channel clamping
 
                 col.rgb = clamp(col.rgb, 0., 1.);
@@ -333,6 +352,14 @@ function getMatcapProgram (context) {
             shadowingPower: 'f',
             shadowingHalfLambertian: 'f',
             shadowingReductionByLuma: 'f',
+
+            rimWidth: 'f',
+            rimBlending: 'f',
+            rimPower: 'f',
+            rimAmount: 'f',
+            rimColor: '3f',
+            rimPositionX: 'f',
+            rimPositionY: 'f',
 
             hueChangeOnBackground: 'f',
             backgroundRegenerate: 'b'
@@ -494,6 +521,14 @@ function matcapProcess (context, inputs, outputs, parameters) {
         shadowingPower: parameters.shadowingPower,
         shadowingHalfLambertian: parameters.shadowingHalfLambertian,
         shadowingReductionByLuma: parameters.shadowingReductionByLuma,
+
+        rimWidth: parameters.rimWidth,
+        rimBlending: parameters.rimBlending,
+        rimPower: parameters.rimPower,
+        rimAmount: parameters.rimAmount,
+        rimColor: parameters.rimColor.map(v => v / 255),
+        rimPositionX: parameters.rimPositionX,
+        rimPositionY: parameters.rimPositionY,
 
         hueChangeOnBackground: parameters.hueChangeOnBackground,
         backgroundRegenerate: parameters.backgroundRegenerate

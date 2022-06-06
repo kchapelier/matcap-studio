@@ -73,6 +73,14 @@ function init () {
         shadowingHalfLambertian: 0.5,
         shadowingReductionByLuma: 1.,
 
+        rimWidth: 1,
+        rimBlending: 0,
+        rimAmount: 0,
+        rimPower: 1,
+        rimColor: [1., 1., 1.].map(v => v * 255 | 0),
+        rimPositionX : 0,
+        rimPositionY: 0,
+
         hueChangeOnBackground: 0.,
         backgroundRegenerate: false,
         backgroundColor:  [0., 0., 0.].map(v => v * 255 | 0),
@@ -80,7 +88,7 @@ function init () {
 
         fov: 50,
         filtered: true,
-        anisotropy: 1
+        anisotropy: Math.min(8, viewer.getMaxAnisotropy())
     };
 
     const options = Object.assign({}, defaults);
@@ -278,15 +286,27 @@ function init () {
 
     folder = gui.addFolder('Shadowing');
     folder.addColor(options, 'shadowingColor').name('Shadow color').onChange(requestMatcapUpdate);
-    folder.add(options, 'shadowingPositionX', -10.0, 10.0).step(0.001).name('Position X').onChange(requestMatcapUpdate);
-    folder.add(options, 'shadowingPositionY', -10.0, 10.0).step(0.001).name('Position Y').onChange(requestMatcapUpdate);
-    folder.add(options, 'shadowingPositionZ', -10.0, 10.0).step(0.001).name('Position Z').onChange(requestMatcapUpdate);
-    folder.add(options, 'shadowingHalfLambertian', 0.0, 1.0).step(0.001).name('Half Lambertian Ratio').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPositionX', -10.0, 10.0).step(0.001).name('Light position X').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPositionY', -10.0, 10.0).step(0.001).name('Light position Y').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingPositionZ', -10.0, 10.0).step(0.001).name('Light position Z').onChange(requestMatcapUpdate);
+    folder.add(options, 'shadowingHalfLambertian', 0.0, 1.0).step(0.001).name('Half-Lambertian ratio').onChange(requestMatcapUpdate);
     folder.add(options, 'shadowingAmount', 0.0, 1.0).step(0.001).name('Amount').onChange(requestMatcapUpdate);
     folder.add(options, 'shadowingPower', 1.0, 2.0).step(0.001).name('Power').onChange(requestMatcapUpdate);
     folder.add(options, 'shadowingReductionByLuma', 0.0, 1.0).step(0.001).name('Reduction by luma').onChange(requestMatcapUpdate);
     folder.add({ reset: function () {
         resetGroupToDefaults('Shadowing');
+    }}, 'reset').name('Reset');
+
+    folder = gui.addFolder('Rim lighting');
+    folder.add(options, 'rimWidth', 1.0, 4.0).step(0.001).name('Rim width').onChange(requestMatcapUpdate);
+    folder.add(options, 'rimPower', 0.5, 4.0).step(0.001).name('Rim power').onChange(requestMatcapUpdate);
+    folder.add(options, 'rimAmount', 0.0, 1.0).step(0.001).name('Rim amount').onChange(requestMatcapUpdate);
+    folder.add(options, 'rimBlending', 0.0, 1.0).step(0.001).name('Rim blending').onChange(requestMatcapUpdate);
+    folder.add(options, 'rimPositionX', -1.0, 1.0).step(0.001).name('Rim position X').onChange(requestMatcapUpdate);
+    folder.add(options, 'rimPositionY', -1.0, 1.0).step(0.001).name('Rim position Y').onChange(requestMatcapUpdate);
+    folder.addColor(options, 'rimColor').name('Rim color').onChange(requestMatcapUpdate);
+    folder.add({ reset: function () {
+        resetGroupToDefaults('Rim lighting');
     }}, 'reset').name('Reset');
 
     folder = gui.addFolder('Circular blur');
@@ -331,6 +351,7 @@ function init () {
             resetGroupToDefaults('Colors');
             resetGroupToDefaults('Iridescence');
             resetGroupToDefaults('Shadowing');
+            resetGroupToDefaults('Rim lighting');
             resetGroupToDefaults('Circular blur');
             resetGroupToDefaults('Background');
             resetGroupToDefaults('Viewer');

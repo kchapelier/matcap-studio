@@ -33,6 +33,7 @@ Make sure to contact me, either on [Twitter](https://twitter.com/kchplr) or thro
 
 ## History
 
+ - **0.6.0 (2022-06-06):** Add the ability to apply fresnel rim + fix saturation and tinting overriding the hue, brightness and contrast + set default anisotropy to 8 if possible
  - **0.5.1 (2022-05-27):** Fix conflict between the curve modifier and the shadowing + properly label the torus knot 
  - **0.5.0 (2022-05-26):** Add the ability to apply a shadow on the matcap
  - **0.4.1 (2022-05-21):** Update the dependencies
